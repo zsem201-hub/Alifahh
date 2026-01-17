@@ -3,14 +3,8 @@ const {Client,GatewayIntentBits,REST,Routes,SlashCommandBuilder,ActivityType,Emb
 const axios=require('axios');
 const express=require('express');
 
-// ==========================================
-// PROTECTED NAMES
-// ==========================================
-const PROTECTED=new Set(['game','workspace','script','plugin','shared','Enum','Instance','Vector3','Vector2','CFrame','Color3','BrickColor','UDim','UDim2','Ray','TweenInfo','Region3','Rect','NumberRange','NumberSequence','ColorSequence','PhysicalProperties','Random','Axes','Faces','typeof','require','spawn','delay','wait','tick','time','warn','settings','UserSettings','version','printidentity','elapsedTime','getgenv','getrenv','getfenv','setfenv','getrawmetatable','setrawmetatable','hookfunction','hookmetamethod','newcclosure','islclosure','iscclosure','loadstring','checkcaller','getcallingscript','identifyexecutor','getexecutorname','syn','fluxus','KRNL_LOADED','Drawing','cleardrawcache','isreadonly','setreadonly','firesignal','getconnections','fireproximityprompt','gethui','gethiddenproperty','sethiddenproperty','setsimulationradius','getcustomasset','getsynasset','isnetworkowner','fireclickdetector','firetouchinterest','isrbxactive','request','http_request','HttpGet','httpget','HttpPost','readfile','writefile','appendfile','loadfile','isfile','isfolder','makefolder','delfolder','delfile','listfiles','getscriptbytecode','rconsoleprint','rconsolename','rconsoleclear','rconsoleinput','setclipboard','setfflag','getnamecallmethod','task','_G','_VERSION','assert','collectgarbage','coroutine','debug','dofile','error','gcinfo','getmetatable','setmetatable','ipairs','pairs','next','load','loadfile','newproxy','os','io','pcall','xpcall','print','rawequal','rawget','rawset','rawlen','select','string','table','math','bit32','utf8','tonumber','tostring','type','unpack','and','break','do','else','elseif','end','false','for','function','goto','if','in','local','nil','not','or','repeat','return','then','true','until','while','continue','self','this','Callback','Connect','Wait','Fire','Value','Name','Parent','Text','Title','Duration','Enabled','CurrentValue','Range','Increment','Options','CurrentOption','Color','Players','LocalPlayer','Character','Humanoid','HumanoidRootPart','Head','Torso','UpperTorso','LowerTorso','RightArm','LeftArm','RightLeg','LeftLeg','WalkSpeed','JumpPower','Health','MaxHealth','Workspace','ReplicatedStorage','ServerStorage','ServerScriptService','StarterGui','StarterPack','StarterPlayer','Teams','SoundService','Lighting','Debris','TweenService','RunService','UserInputService','ContextActionService','GuiService','MarketplaceService','PolicyService','Players','Chat','TextService','PathfindingService','PhysicsService','CollectionService','ProximityPromptService','GetService','FindFirstChild','WaitForChild','Clone','Destroy','ClearAllChildren','GetChildren','GetDescendants','IsA','GetFullName','GetPropertyChangedSignal','Changed','ChildAdded','ChildRemoved','AncestryChanged','Touched','TouchEnded','Hit','Equipped','Unequipped','Activated','Deactivated','MouseButton1Click','MouseButton2Click','MouseEnter','MouseLeave','InputBegan','InputEnded','InputChanged','Heartbeat','RenderStepped','Stepped','BindToRenderStep','UnbindFromRenderStep','IsClient','IsServer','IsStudio','Kick','Ban','TeleportService','Teleport','GetProductInfo','PromptPurchase','PromptGamePassPurchase','UserOwnsGamePassAsync','GetGamePassInfo','ProcessReceipt','GetPlayerFromCharacter']);
+const PROTECTED=new Set(['game','workspace','script','plugin','shared','Enum','Instance','Vector3','Vector2','CFrame','Color3','BrickColor','UDim','UDim2','Ray','TweenInfo','Region3','Rect','NumberRange','NumberSequence','ColorSequence','PhysicalProperties','Random','Axes','Faces','typeof','require','spawn','delay','wait','tick','time','warn','settings','UserSettings','version','printidentity','elapsedTime','getgenv','getrenv','getfenv','setfenv','getrawmetatable','setrawmetatable','hookfunction','hookmetamethod','newcclosure','islclosure','iscclosure','loadstring','checkcaller','getcallingscript','identifyexecutor','getexecutorname','syn','fluxus','KRNL_LOADED','Drawing','cleardrawcache','isreadonly','setreadonly','firesignal','getconnections','fireproximityprompt','gethui','gethiddenproperty','sethiddenproperty','setsimulationradius','getcustomasset','getsynasset','isnetworkowner','fireclickdetector','firetouchinterest','isrbxactive','request','http_request','HttpGet','httpget','HttpPost','readfile','writefile','appendfile','loadfile','isfile','isfolder','makefolder','delfolder','delfile','listfiles','getscriptbytecode','rconsoleprint','rconsolename','rconsoleclear','rconsoleinput','setclipboard','setfflag','getnamecallmethod','task','_G','_VERSION','assert','collectgarbage','coroutine','debug','dofile','error','gcinfo','getmetatable','setmetatable','ipairs','pairs','next','load','loadfile','newproxy','os','io','pcall','xpcall','print','rawequal','rawget','rawset','rawlen','select','string','table','math','bit32','utf8','tonumber','tostring','type','unpack','and','break','do','else','elseif','end','false','for','function','goto','if','in','local','nil','not','or','repeat','return','then','true','until','while','continue','self','this','Callback','Connect','Wait','Fire','Value','Name','Parent','Text','Title','Duration','Enabled','CurrentValue','Range','Increment','Options','CurrentOption','Color','Players','LocalPlayer','Character','Humanoid','HumanoidRootPart','Head','Torso','WalkSpeed','JumpPower','Health','MaxHealth','Workspace','ReplicatedStorage','ServerStorage','ServerScriptService','StarterGui','StarterPack','StarterPlayer','Teams','SoundService','Lighting','Debris','TweenService','RunService','UserInputService','ContextActionService','GuiService','MarketplaceService','GetService','FindFirstChild','WaitForChild','Clone','Destroy','ClearAllChildren','GetChildren','GetDescendants','IsA','bxor','band','bor','bnot','lshift','rshift','bit32']);
 
-// ==========================================
-// LUAGUARD v5.5 HYBRID CLASS
-// ==========================================
 class LuaGuardHybrid{
 constructor(preset){
 this.preset=preset;
@@ -36,9 +30,6 @@ rand(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
 randChar(str){return str[Math.floor(Math.random()*str.length)];}
 randItem(arr){return arr[Math.floor(Math.random()*arr.length)];}
 
-// ==========================================
-// 10 VARIABLE STYLES (RESTORED)
-// ==========================================
 genVarName(){
 this.varCounter++;
 const id=this.varCounter.toString(36).toUpperCase();
@@ -57,9 +48,6 @@ const styles=[
 return styles[this.rand(0,styles.length-1)]();
 }
 
-// ==========================================
-// IS IN STRING CHECK (RESTORED)
-// ==========================================
 isInString(code,pos){
 let inStr=false,q='';
 for(let i=0;i<pos&&i<code.length;i++){
@@ -72,9 +60,6 @@ else if(c===q){inStr=false;}
 return inStr;
 }
 
-// ==========================================
-// REMOVE COMMENTS (RESTORED)
-// ==========================================
 removeComments(code){
 let result=code;
 let count=0;
@@ -99,9 +84,6 @@ if(count>0)this.logs.push('Comments: -'+count);
 return result;
 }
 
-// ==========================================
-// EXTRACT STRINGS (PLACEHOLDER SYSTEM)
-// ==========================================
 extractStrings(code){
 if(this.preset==='performance')return code;
 let result='',i=0;
@@ -143,9 +125,6 @@ if(this.stringStore.length>0)this.logs.push('Strings: '+this.stringStore.length+
 return result;
 }
 
-// ==========================================
-// ENCODE STRING BASIC (BALANCED MODE)
-// ==========================================
 encodeStringBasic(str){
 if(!str)return '""';
 const codes=[];
@@ -162,9 +141,6 @@ else{codes.push(c);}
 return 'string.char('+codes.join(',')+')';
 }
 
-// ==========================================
-// ENCODE NUMBER (RESTORED)
-// ==========================================
 encodeNumber(num){
 if(num<10||num>9999||!Number.isInteger(num))return num.toString();
 const m=this.rand(0,3);
@@ -174,9 +150,6 @@ if(m===2){const b=num+this.rand(1,50);return '('+b+'-'+(b-num)+')';}
 return num.toString();
 }
 
-// ==========================================
-// RENAME VARIABLES (RESTORED + FIXED)
-// ==========================================
 renameVars(code){
 if(this.preset==='performance')return code;
 let result=code;
@@ -224,9 +197,6 @@ if(vars.length>0)this.logs.push('Variables: '+vars.length);
 return result;
 }
 
-// ==========================================
-// OBFUSCATE NUMBERS (RESTORED)
-// ==========================================
 obfuscateNumbers(code){
 if(this.preset!=='maxSecurity')return code;
 let count=0;
@@ -245,9 +215,6 @@ if(count>0)this.logs.push('Numbers: '+count);
 return result;
 }
 
-// ==========================================
-// INJECT DEAD CODE (RESTORED 5 PATTERNS)
-// ==========================================
 injectDeadCode(code){
 if(this.preset!=='maxSecurity')return code;
 const lines=code.split('\n');
@@ -275,20 +242,11 @@ this.logs.push('DeadCode: +'+injected);
 return newLines.join('\n');
 }
 
-// ==========================================
-// XOR ENCRYPTION SYSTEM (NEW)
-// ==========================================
 generateSecurityBlock(){
 if(this.stringStore.length===0)return '';
 this.decryptorName=this.genVarName();
 this.tableName=this.genVarName();
 const encryptedTable=this.stringStore.map(str=>{
-const bytes=[];
-for(let i=0;i<str.length;i++){
-const c=str.charCodeAt(i);
-const escaped=(c===92||c===34||c===39)?c:c^this.xorKey;
-bytes.push(escaped===c?c:c^this.xorKey);
-}
 const finalBytes=[];
 for(let i=0;i<str.length;i++){
 finalBytes.push(str.charCodeAt(i)^this.xorKey);
@@ -298,7 +256,7 @@ return '{'+finalBytes.join(',')+'}';
 const tableCode='local '+this.tableName+'={'+encryptedTable.join(',')+'}';
 const decryptCode='local '+this.decryptorName+'=function(t) local r="" for i=1,#t do r=r..string.char(bit32.bxor(t[i],'+this.xorKey+')) end return r end';
 this.logs.push('XOR Key: '+this.xorKey);
-return decryptCode+';'+tableCode+';';
+return decryptCode+' '+tableCode+' ';
 }
 
 restoreStrings(code){
@@ -309,9 +267,6 @@ return this.decryptorName+'('+this.tableName+'['+(idx+1)+'])';
 });
 }
 
-// ==========================================
-// CLEAN CODE (RESTORED)
-// ==========================================
 cleanCode(code){
 const lines=code.split('\n').map(l=>l.trim()).filter(l=>l!=='');
 this.logs.push('Cleaned');
@@ -319,47 +274,50 @@ return lines.join('\n');
 }
 
 // ==========================================
-// MINIFY SINGLE LINE (FIXED SAFE)
+// FIXED SAFE MINIFIER - NO KEYWORD BREAKING
 // ==========================================
 minifySingleLine(code){
 let result=code;
-result=result.replace(/[\r\n]+/g,' ');
-result=result.replace(/\s+/g,' ');
-result=result.replace(/\s*([=+\-*/%^,{}()[\];])\s*/g,'$1');
-const keywords=['local','function','return','if','then','else','elseif','end','do','while','for','in','and','or','not','break','repeat','until','true','false','nil'];
-keywords.forEach(kw=>{
-const re1=new RegExp('\\b'+kw+'([a-zA-Z0-9_])','g');
-result=result.replace(re1,kw+' $1');
-const re2=new RegExp('([a-zA-Z0-9_])'+kw+'\\b','g');
-result=result.replace(re2,'$1 '+kw);
-});
-result=result.replace(/\s*#\s*/g,' # ');
-result=result.replace(/# ([a-zA-Z_])/g,'#$1');
-this.logs.push('Minified: 1-line');
+// Step 1: Replace newlines with semicolons (safe statement separator)
+result=result.replace(/\n+/g,';');
+// Step 2: Remove multiple semicolons
+result=result.replace(/;+/g,';');
+// Step 3: Remove leading/trailing semicolons
+result=result.replace(/^;+|;+$/g,'');
+// Step 4: Reduce multiple spaces to single space (SAFE - keeps word boundaries)
+result=result.replace(/[ \t]+/g,' ');
+// Step 5: Remove spaces around SAFE punctuation only (NOT touching letters)
+result=result.replace(/ ?([\[\]{}(),;]) ?/g,'$1');
+// Step 6: Remove space after ( and before )
+result=result.replace(/\( /g,'(');
+result=result.replace(/ \)/g,')');
+// Step 7: Remove space around = but ONLY when surrounded by non-letters
+result=result.replace(/ ?= ?/g,'=');
+// Step 8: Fix cases where = removal broke things (like "local x =1" -> "local x=1" is OK)
+// Step 9: Ensure semicolon after 'end' if followed by keyword
+result=result.replace(/end([a-zA-Z])/g,'end;$1');
+// Step 10: Remove unnecessary semicolons before 'end', 'else', 'elseif', 'until'
+result=result.replace(/;(end|else|elseif|until)/g,' $1');
+// Step 11: Fix 'then' and 'do' followed directly by code
+result=result.replace(/then([a-zA-Z_])/g,'then $1');
+result=result.replace(/do([a-zA-Z_])/g,'do $1');
+result=result.replace(/else([a-zA-Z_])/g,'else $1');
+this.logs.push('Minified: compact');
 return result.trim();
 }
 
-// ==========================================
-// ADD WRAPPER (RESTORED)
-// ==========================================
 addWrapper(code){
 if(this.preset==='performance')return code;
 this.logs.push('Wrapped');
 return 'do '+code+' end';
 }
 
-// ==========================================
-// GET HEADER (RESTORED)
-// ==========================================
 getHeader(){
 const id=Math.random().toString(36).substring(2,10).toUpperCase();
 const presets={performance:'Perf',balanced:'Balanced',maxSecurity:'MaxSec'};
 return '-- LuaGuard v5.5 ['+id+'] '+presets[this.preset]+'\n';
 }
 
-// ==========================================
-// MAIN OBFUSCATE (HYBRID FLOW)
-// ==========================================
 obfuscate(source){
 let code=source;
 code=this.removeComments(code);
@@ -375,6 +333,9 @@ if(securityBlock){
 code=securityBlock+code;
 }
 code=this.minifySingleLine(code);
+}else if(this.preset==='balanced'){
+code=this.cleanCode(code);
+code=this.minifySingleLine(code);
 }else{
 code=this.cleanCode(code);
 }
@@ -386,9 +347,6 @@ logs:this.logs
 }
 }
 
-// ==========================================
-// WEB SERVER (RESTORED FULL HTML)
-// ==========================================
 const app=express();
 app.get('/',(req,res)=>{
 res.send(`<!DOCTYPE html><html><head><title>LuaGuard v5.5</title>
@@ -410,7 +368,7 @@ li{margin:8px 0}
 </div>
 <div class="box">
 <h3>⚖️ Balanced</h3>
-<p>+ Variable rename + String encode</p>
+<p>+ Variable rename + String encode + Minify</p>
 </div>
 <div class="box">
 <h3>🔒 Max Security (Hybrid)</h3>
@@ -421,7 +379,7 @@ li{margin:8px 0}
 <li>✅ Dead Code Injection</li>
 <li class="new">🆕 XOR String Encryption</li>
 <li class="new">🆕 Constant Table</li>
-<li class="new">🆕 Single-Line Minify</li>
+<li class="new">🆕 Compact Output</li>
 </ul>
 </div>
 <p class="footer">Delta Executor Compatible</p>
@@ -429,9 +387,6 @@ li{margin:8px 0}
 });
 app.listen(process.env.PORT||3000,()=>console.log('[Server] Running on port '+(process.env.PORT||3000)));
 
-// ==========================================
-// DISCORD BOT (RESTORED ALL COMMANDS)
-// ==========================================
 const TOKEN=process.env.DISCORD_TOKEN;
 const CLIENT_ID=process.env.CLIENT_ID;
 
@@ -474,17 +429,11 @@ console.log('[Bot] Slash commands registered');
 client.on('interactionCreate',async interaction=>{
 if(!interaction.isChatInputCommand())return;
 
-// ==========================================
-// PING COMMAND (RESTORED)
-// ==========================================
 if(interaction.commandName==='ping'){
 const latency=Date.now()-interaction.createdTimestamp;
 return interaction.reply({content:'🏓 Pong! Latency: **'+latency+'ms**',ephemeral:false});
 }
 
-// ==========================================
-// HELP COMMAND (RESTORED)
-// ==========================================
 if(interaction.commandName==='help'){
 const embed=new EmbedBuilder()
 .setColor(0x58a6ff)
@@ -492,24 +441,20 @@ const embed=new EmbedBuilder()
 .setDescription('Advanced Lua Obfuscator with Hybrid Protection')
 .addFields(
 {name:'⚡ Performance',value:'```\n• Comment removal\n• Basic cleaning\n```',inline:true},
-{name:'⚖️ Balanced',value:'```\n• + Variable rename\n• + String encode\n```',inline:true},
-{name:'🔒 Max Security',value:'```\n• + XOR Encryption\n• + Constant Table\n• + Number obfuscation\n• + Dead code\n• + Minification\n```',inline:true},
+{name:'⚖️ Balanced',value:'```\n• + Variable rename\n• + String encode\n• + Minify\n```',inline:true},
+{name:'🔒 Max Security',value:'```\n• + XOR Encryption\n• + Constant Table\n• + Number obfuscation\n• + Dead code\n• + Compact output\n```',inline:true},
 {name:'📋 Commands',value:'`/obfuscate` - Protect your script\n`/ping` - Check latency\n`/help` - This message',inline:false},
-{name:'🆕 v5.5 Updates',value:'• XOR String Encryption\n• Constant Table Storage\n• Single-Line Output\n• Hybrid Max Security',inline:false}
+{name:'🆕 v5.5 Updates',value:'• XOR String Encryption\n• Constant Table Storage\n• Fixed Safe Minifier\n• Hybrid Max Security',inline:false}
 )
 .setFooter({text:'Delta Executor Compatible'})
 .setTimestamp();
 return interaction.reply({embeds:[embed]});
 }
 
-// ==========================================
-// OBFUSCATE COMMAND (RESTORED FULL)
-// ==========================================
 if(interaction.commandName==='obfuscate'){
 const file=interaction.options.getAttachment('file');
 const preset=interaction.options.getString('preset')||'balanced';
 
-// File validation (RESTORED)
 if(!['.lua','.luau','.txt'].some(e=>file.name.toLowerCase().endsWith(e))){
 return interaction.reply({content:'❌ Invalid file type. Please upload .lua, .luau, or .txt',ephemeral:true});
 }
@@ -527,24 +472,20 @@ if(!source.trim()){
 return interaction.editReply('❌ Empty file');
 }
 
-// Process with timing (RESTORED)
 const startTime=Date.now();
 const obf=new LuaGuardHybrid(preset);
 const result=obf.obfuscate(source);
 const endTime=Date.now();
 const processTime=((endTime-startTime)/1000).toFixed(2);
 
-// Output file naming (RESTORED)
 const buf=Buffer.from(result.code,'utf-8');
 const outName=file.name.replace(/\.(lua|luau|txt)$/i,'_obf.lua');
 const attachment=new AttachmentBuilder(buf,{name:outName});
 
-// Colors and icons (RESTORED)
 const colors={performance:0x3fb950,balanced:0x58a6ff,maxSecurity:0xf85149};
 const icons={performance:'⚡',balanced:'⚖️',maxSecurity:'🔒'};
 const presetNames={performance:'Performance',balanced:'Balanced',maxSecurity:'Max Security'};
 
-// Detailed embed (RESTORED)
 const embed=new EmbedBuilder()
 .setColor(colors[preset])
 .setTitle(icons[preset]+' Obfuscation Complete')
@@ -569,7 +510,6 @@ await interaction.editReply('❌ Error: '+e.message);
 }
 });
 
-// Login
 if(TOKEN){
 client.login(TOKEN);
 }else{
