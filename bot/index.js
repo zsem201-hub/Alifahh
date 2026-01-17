@@ -8,18 +8,15 @@ const axios = require('axios');
 const express = require('express');
 
 // ==========================================
-// 🛡️ PROTECTED NAMES (JANGAN UBAH)
+// PROTECTED NAMES
 // ==========================================
 const PROTECTED = new Set([
-    // Core
     'game','workspace','script','plugin','shared','Enum','Instance',
     'Vector3','Vector2','CFrame','Color3','BrickColor','UDim','UDim2',
     'Ray','TweenInfo','Region3','Rect','NumberRange','NumberSequence',
     'ColorSequence','PhysicalProperties','Random','Axes','Faces',
-    // Functions
     'typeof','require','spawn','delay','wait','tick','time','warn',
     'settings','UserSettings','version','printidentity','elapsedTime',
-    // Executor Specific
     'getgenv','getrenv','getfenv','setfenv','getrawmetatable','setrawmetatable',
     'hookfunction','hookmetamethod','newcclosure','islclosure','iscclosure',
     'loadstring','checkcaller','getcallingscript','identifyexecutor',
@@ -33,25 +30,24 @@ const PROTECTED = new Set([
     'makefolder','delfolder','delfile','listfiles','getscriptbytecode',
     'rconsoleprint','rconsolename','rconsoleclear','rconsoleinput',
     'setclipboard','setfflag','getnamecallmethod','task',
-    // Lua Standard
     '_G','_VERSION','assert','collectgarbage','coroutine','debug',
     'dofile','error','gcinfo','getmetatable','setmetatable',
     'ipairs','pairs','next','load','loadfile','newproxy',
     'os','io','pcall','xpcall','print','rawequal','rawget','rawset','rawlen',
     'select','string','table','math','bit32','utf8',
     'tonumber','tostring','type','unpack',
-    // Keywords
     'and','break','do','else','elseif','end','false','for','function',
     'goto','if','in','local','nil','not','or','repeat','return',
     'then','true','until','while','continue',
-    // Common
-    'self','this','Callback','Connect','Wait','Fire','Value'
+    'self','this','Callback','Connect','Wait','Fire','Value',
+    'Name','Parent','Text','Title','Duration','Enabled','CurrentValue',
+    'Range','Increment','Options','CurrentOption','Color'
 ]);
 
 // ==========================================
-// 🔧 LUAGUARD PRO OBFUSCATOR
+// LUAGUARD STABLE OBFUSCATOR
 // ==========================================
-class LuaGuardPro {
+class LuaGuard {
     constructor(preset) {
         this.preset = preset;
         this.counter = 0;
@@ -59,13 +55,12 @@ class LuaGuardPro {
         this.logs = [];
     }
 
-    // Generate Hex Name (_0x00A1)
+    // Generate Hex Name
     hexName() {
-        const hex = (this.counter++).toString(16).toUpperCase().padStart(4, '0');
-        return `_0x${hex}`;
+        return '_0x' + (this.counter++).toString(16).toUpperCase().padStart(4, '0');
     }
 
-    // Cek posisi dalam string
+    // Check if inside string
     isInString(code, pos) {
         let inStr = false, q = '';
         for (let i = 0; i < pos && i < code.length; i++) {
@@ -74,6 +69,7 @@ class LuaGuardPro {
                 if (!inStr) { inStr = true; q = c; }
                 else if (c === q) { inStr = false; }
             }
+            // Long string
             if (c === '[' && code[i+1] === '[' && !inStr) {
                 const end = code.indexOf(']]', i+2);
                 if (end > 0 && pos > i && pos < end+2) return true;
@@ -82,28 +78,28 @@ class LuaGuardPro {
         return inStr;
     }
 
-    // Encode string ke string.char()
-    encodeString(str) {
-        if (!str) return '""';
+    // Encode string to string.char()
+    encodeStr(str) {
+        if (!str || str.length === 0) return '""';
         const codes = [];
-        for (let i = 0; i < str.length; i++) codes.push(str.charCodeAt(i));
+        for (let i = 0; i < str.length; i++) {
+            codes.push(str.charCodeAt(i));
+        }
         return `string.char(${codes.join(',')})`;
     }
 
-    // Number ke Hex
-    toHex(num) {
-        return `0x${num.toString(16).toUpperCase()}`;
-    }
-
-    // 1. Remove Comments (Safe Mode)
+    // 1. Remove Comments
     removeComments(code) {
         let result = code;
         let count = 0;
 
-        // Hapus Multiline --[[ ]]
-        result = result.replace(/--\[(=*)\[[\s\S]*?\]\1\]/g, () => { count++; return ' '; });
+        // Multi-line
+        result = result.replace(/--\[(=*)\[[\s\S]*?\]\1\]/g, () => { 
+            count++; 
+            return ''; 
+        });
 
-        // Hapus Singleline -- (Per baris)
+        // Single-line
         const lines = result.split('\n');
         result = lines.map(line => {
             let inStr = false, q = '';
@@ -131,8 +127,8 @@ class LuaGuardPro {
 
         let result = code;
         const vars = [];
-        
-        // Pola Local
+
+        // Local declarations
         const localRe = /\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
         let m;
         while ((m = localRe.exec(code)) !== null) {
@@ -144,34 +140,38 @@ class LuaGuardPro {
             }
         }
 
-        // Pola Parameter Function
+        // Function parameters
         const funcRe = /function\s*[a-zA-Z_.:]*\s*\(([^)]*)\)/g;
         while ((m = funcRe.exec(code)) !== null) {
             if (m[1].trim()) {
-                m[1].split(',').map(p => p.trim()).filter(p => p && p !== '...').forEach(p => {
+                const params = m[1].split(',').map(p => p.trim()).filter(p => p && p !== '...');
+                for (const p of params) {
                     if (!PROTECTED.has(p) && !this.varMap.has(p)) {
                         const newN = this.hexName();
                         this.varMap.set(p, newN);
                         vars.push({ old: p, new: newN });
                     }
-                });
+                }
             }
         }
 
-        // Pola Loop
+        // For loop variables
         const forRe = /\bfor\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:,\s*([a-zA-Z_][a-zA-Z0-9_]*))?\s*[=,in]/g;
         while ((m = forRe.exec(code)) !== null) {
-            [m[1], m[2]].filter(Boolean).forEach(v => {
+            const loopVars = [m[1], m[2]].filter(Boolean);
+            for (const v of loopVars) {
                 if (!PROTECTED.has(v) && !this.varMap.has(v)) {
                     const newN = this.hexName();
                     this.varMap.set(v, newN);
                     vars.push({ old: v, new: newN });
                 }
-            });
+            }
         }
 
-        // Replace (Longest first)
+        // Sort by length (longest first) to avoid partial replacement
         vars.sort((a, b) => b.old.length - a.old.length);
+
+        // Replace all occurrences
         for (const v of vars) {
             const re = new RegExp('\\b' + v.old + '\\b', 'g');
             result = result.replace(re, (match, offset) => {
@@ -183,7 +183,7 @@ class LuaGuardPro {
         return result;
     }
 
-    // 3. Encode Strings (Max Security)
+    // 3. Encode Strings (SAFE - Only long strings without escapes)
     encodeStrings(code) {
         if (this.preset !== 'maxSecurity') return code;
 
@@ -192,22 +192,39 @@ class LuaGuardPro {
         let encoded = 0;
 
         while (i < code.length) {
+            // Check for string start
             if ((code[i] === '"' || code[i] === "'") && (i === 0 || code[i-1] !== '\\')) {
-                const q = code[i];
+                const quote = code[i];
                 let content = '';
-                i++;
-                while (i < code.length && !(code[i] === q && code[i-1] !== '\\')) {
-                    content += code[i];
-                    i++;
+                i++; // skip opening quote
+                
+                // Collect string content
+                while (i < code.length) {
+                    if (code[i] === '\\' && i + 1 < code.length) {
+                        // Keep escape sequences as-is
+                        content += code[i] + code[i+1];
+                        i += 2;
+                    } else if (code[i] === quote) {
+                        break;
+                    } else {
+                        content += code[i];
+                        i++;
+                    }
                 }
                 i++; // skip closing quote
 
-                // Encode logic: panjang > 3 dan tidak mengandung escape
-                if (content.length > 3 && !content.includes('\\') && !content.includes('\n')) {
-                    result += this.encodeString(content);
+                // Only encode if:
+                // - Length > 4
+                // - No escape sequences
+                // - No special chars that might break
+                const hasEscape = content.includes('\\');
+                const hasNewline = content.includes('\n') || content.includes('\r');
+                
+                if (content.length > 4 && !hasEscape && !hasNewline) {
+                    result += this.encodeStr(content);
                     encoded++;
                 } else {
-                    result += q + content + q;
+                    result += quote + content + quote;
                 }
             } else {
                 result += code[i];
@@ -219,173 +236,260 @@ class LuaGuardPro {
         return result;
     }
 
-    // 4. Obfuscate Numbers
-    obfuscateNumbers(code) {
-        if (this.preset !== 'maxSecurity') return code;
-        let count = 0;
-        const result = code.replace(/\b(\d+)\b/g, (match, num, offset) => {
-            if (this.isInString(code, offset)) return match;
-            const n = parseInt(num);
-            if (isNaN(n) || n > 100000 || n < 10) return match;
-            count++;
-            return this.toHex(n);
-        });
-        if (count > 0) this.logs.push(`Converted ${count} numbers`);
-        return result;
-    }
-
-    // 5. Minify (SAFE MODE - NO AGGRESSIVE MERGING)
-    minify(code) {
-        // Hanya hapus baris kosong dan trim. JANGAN gabung baris untuk hindari syntax error.
+    // 4. Clean Whitespace (SAFE - Keep newlines)
+    cleanWhitespace(code) {
         let lines = code.split('\n');
+        
+        // Trim each line and remove empty lines
         lines = lines.map(l => l.trim()).filter(l => l !== '');
-        this.logs.push('Cleaned structure');
+        
+        this.logs.push('Cleaned whitespace');
         return lines.join('\n');
     }
 
-    // 6. Wrapper (DO BLOCK - SAFER THAN IIFE)
-    wrapCode(code) {
+    // 5. Add Wrapper
+    addWrapper(code) {
         if (this.preset === 'performance') return code;
-        this.logs.push('Added safety wrapper');
-        // Gunakan 'do ... end' untuk membuat scope lokal tanpa memanggil fungsi (menghindari call nil value)
+        
+        this.logs.push('Added protection wrapper');
         return `do\n${code}\nend`;
     }
 
-    // Header Generator
-    generateHeader() {
+    // Generate Header
+    getHeader() {
         const date = new Date().toISOString().split('T')[0];
-        const pMap = {
+        const presetNames = {
             'performance': 'Performance',
             'balanced': 'Balanced',
-            'maxSecurity': 'Max Security'
+            'maxSecurity': 'Maximum Security'
         };
+        
         return [
-            '-- /////////////////////////////////////////////////////////////////',
-            '-- /// LuaGuard Protected Script',
-            `-- /// Preset: ${pMap[this.preset]}`,
-            `-- /// Date: ${date}`,
-            '-- /// Status: Active',
-            '-- /////////////////////////////////////////////////////////////////',
+            '-- //////////////////////////////////////////////////////////////////',
+            '-- // LuaGuard Obfuscator v2.1',
+            `-- // Preset: ${presetNames[this.preset]}`,
+            `-- // Protected: ${date}`,
+            '-- // Roblox Executor Compatible',
+            '-- //////////////////////////////////////////////////////////////////',
             ''
         ].join('\n');
     }
 
+    // Main obfuscate function
     obfuscate(source) {
         let code = source;
+
+        // Apply transforms in safe order
         code = this.removeComments(code);
         code = this.renameVars(code);
         code = this.encodeStrings(code);
-        code = this.obfuscateNumbers(code);
-        code = this.minify(code);
-        code = this.wrapCode(code);
-        return { code: this.generateHeader() + code, logs: this.logs };
+        code = this.cleanWhitespace(code);
+        code = this.addWrapper(code);
+
+        return {
+            code: this.getHeader() + code,
+            logs: this.logs
+        };
     }
 }
 
 // ==========================================
-// 🌐 WEB SERVER
+// WEB SERVER
 // ==========================================
 const app = express();
-app.get('/', (req, res) => res.send('LuaGuard Bot Online'));
-app.listen(process.env.PORT || 3000, () => console.log('Server OK'));
+app.get('/', (req, res) => {
+    res.send(`
+        <html>
+        <head><title>LuaGuard</title></head>
+        <body style="font-family:Arial;background:#1a1a2e;color:#fff;text-align:center;padding:50px">
+            <h1>LuaGuard Bot v2.1</h1>
+            <p style="color:#0f0">Online</p>
+        </body>
+        </html>
+    `);
+});
+app.listen(process.env.PORT || 3000, () => console.log('[Server] Running'));
 
 // ==========================================
-// 🤖 DISCORD BOT
+// DISCORD BOT
 // ==========================================
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 
-console.log('\n[LuaGuard] Starting...');
+console.log('\n=== LuaGuard Bot v2.1 ===');
+console.log(`Token: ${TOKEN ? 'OK' : 'MISSING'}`);
+console.log(`Client: ${CLIENT_ID || 'MISSING'}\n`);
+
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
+// Commands
 const commands = [
     new SlashCommandBuilder()
         .setName('obfuscate')
-        .setDescription('Protect Lua Script')
-        .addAttachmentOption(o => o.setName('file').setDescription('.lua file').setRequired(true))
-        .addStringOption(o => o.setName('preset').setDescription('Level').addChoices(
-            { name: 'Performance', value: 'performance' },
-            { name: 'Balanced', value: 'balanced' },
-            { name: 'Max Security', value: 'maxSecurity' }
-        )),
-    new SlashCommandBuilder().setName('help').setDescription('Show help')
+        .setDescription('Protect your Lua script')
+        .addAttachmentOption(o => 
+            o.setName('file')
+             .setDescription('Upload .lua file')
+             .setRequired(true))
+        .addStringOption(o => 
+            o.setName('preset')
+             .setDescription('Protection level')
+             .addChoices(
+                 { name: 'Performance - Fast & Light', value: 'performance' },
+                 { name: 'Balanced - Recommended', value: 'balanced' },
+                 { name: 'Max Security - Full Protection', value: 'maxSecurity' }
+             )),
+    new SlashCommandBuilder()
+        .setName('help')
+        .setDescription('Show help information')
 ].map(c => c.toJSON());
 
+// Register commands
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 
 client.once('ready', async () => {
-    console.log(`[LuaGuard] Logged in as ${client.user.tag}`);
+    console.log(`Logged in as: ${client.user.tag}`);
     client.user.setActivity('/obfuscate', { type: ActivityType.Listening });
+
     if (CLIENT_ID) {
         try {
             await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
-            console.log('[LuaGuard] Commands registered\n');
-        } catch (e) { console.error(e); }
+            console.log('Commands registered!\n');
+        } catch (e) {
+            console.error('Register error:', e.message);
+        }
     }
 });
 
+// Handle interactions
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
+
     const { commandName } = interaction;
 
+    // Help command
     if (commandName === 'help') {
         const embed = new EmbedBuilder()
             .setColor(0x5865F2)
-            .setTitle('🛡️ LuaGuard Help')
-            .setDescription('Professional Lua Obfuscator')
+            .setTitle('LuaGuard Obfuscator')
+            .setDescription('Protect your Roblox Lua scripts!')
             .addFields(
-                { name: 'Presets', value: '⚡ Performance\n⚖️ Balanced\n🔒 Max Security' },
-                { name: 'Supported', value: 'Lua, Luau, txt' }
-            );
+                { 
+                    name: 'Performance', 
+                    value: '- Comment removal\n- Whitespace cleanup', 
+                    inline: true 
+                },
+                { 
+                    name: 'Balanced', 
+                    value: '- All Performance features\n- Variable renaming', 
+                    inline: true 
+                },
+                { 
+                    name: 'Max Security', 
+                    value: '- All Balanced features\n- String encoding', 
+                    inline: true 
+                }
+            )
+            .setFooter({ text: 'LuaGuard v2.1 - Stable Release' });
+        
         return interaction.reply({ embeds: [embed] });
     }
 
+    // Obfuscate command
     if (commandName === 'obfuscate') {
         const file = interaction.options.getAttachment('file');
         const preset = interaction.options.getString('preset') || 'balanced';
 
-        if (!['.lua', '.luau', '.txt'].some(e => file.name.toLowerCase().endsWith(e))) {
-            return interaction.reply({ content: '❌ File must be .lua .luau .txt', ephemeral: true });
+        // Validate file type
+        const validExtensions = ['.lua', '.luau', '.txt'];
+        const hasValidExt = validExtensions.some(ext => 
+            file.name.toLowerCase().endsWith(ext)
+        );
+        
+        if (!hasValidExt) {
+            return interaction.reply({ 
+                content: '**Error:** Only .lua, .luau, or .txt files are allowed!', 
+                ephemeral: true 
+            });
         }
-        if (file.size > 2 * 1024 * 1024) return interaction.reply({ content: '❌ Max 2MB', ephemeral: true });
+
+        // Validate file size (max 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            return interaction.reply({ 
+                content: '**Error:** File size must be under 2MB!', 
+                ephemeral: true 
+            });
+        }
 
         await interaction.deferReply();
 
         try {
-            const res = await axios.get(file.url, { responseType: 'arraybuffer' });
-            const source = res.data.toString('utf-8');
+            // Download file
+            const response = await axios.get(file.url, { responseType: 'arraybuffer' });
+            const source = response.data.toString('utf-8');
 
-            if (!source.trim()) return interaction.editReply('❌ Empty file');
+            if (!source.trim()) {
+                return interaction.editReply('**Error:** File is empty!');
+            }
 
-            const start = Date.now();
-            const obf = new LuaGuardPro(preset);
-            const result = obf.obfuscate(source);
-            const time = ((Date.now() - start) / 1000).toFixed(2);
+            // Obfuscate
+            const startTime = Date.now();
+            const obfuscator = new LuaGuard(preset);
+            const result = obfuscator.obfuscate(source);
+            const processTime = ((Date.now() - startTime) / 1000).toFixed(2);
 
-            const buf = Buffer.from(result.code, 'utf-8');
-            const outName = file.name.replace(/\.(lua|luau|txt)$/i, '_protected.lua');
-            const attachment = new AttachmentBuilder(buf, { name: outName });
+            // Create output file
+            const outputBuffer = Buffer.from(result.code, 'utf-8');
+            const outputName = file.name.replace(/\.(lua|luau|txt)$/i, '_protected.lua');
+            const attachment = new AttachmentBuilder(outputBuffer, { name: outputName });
+
+            // Calculate size change
+            const originalSize = source.length;
+            const newSize = result.code.length;
+            const sizeChange = ((newSize / originalSize) * 100).toFixed(0);
+
+            // Create embed
+            const presetColors = {
+                'performance': 0x57F287,
+                'balanced': 0x5865F2,
+                'maxSecurity': 0xED4245
+            };
 
             const embed = new EmbedBuilder()
-                .setColor(preset === 'maxSecurity' ? 0xED4245 : 0x5865F2)
-                .setTitle('✅ Obfuscation Successful')
+                .setColor(presetColors[preset])
+                .setTitle('Obfuscation Complete!')
                 .addFields(
-                    { name: 'File', value: `\`${file.name}\``, inline: true },
+                    { name: 'Input', value: `\`${file.name}\``, inline: true },
+                    { name: 'Output', value: `\`${outputName}\``, inline: true },
                     { name: 'Preset', value: preset, inline: true },
-                    { name: 'Size', value: `${source.length} → ${result.code.length} bytes`, inline: true },
-                    { name: 'Transforms', value: result.logs.map(l => `> ${l}`).join('\n') || 'None', inline: false }
+                    { name: 'Original Size', value: `${originalSize.toLocaleString()} bytes`, inline: true },
+                    { name: 'New Size', value: `${newSize.toLocaleString()} bytes`, inline: true },
+                    { name: 'Ratio', value: `${sizeChange}%`, inline: true },
+                    { name: 'Process Time', value: `${processTime}s`, inline: true },
+                    { 
+                        name: 'Transforms Applied', 
+                        value: result.logs.map(l => `> ${l}`).join('\n') || '> None', 
+                        inline: false 
+                    }
                 )
-                .setFooter({ text: 'LuaGuard v2.0 • Luraph Style Output' })
+                .setFooter({ text: 'LuaGuard v2.1 | Roblox Compatible' })
                 .setTimestamp();
 
-            await interaction.editReply({ embeds: [embed], files: [attachment] });
+            await interaction.editReply({ 
+                embeds: [embed], 
+                files: [attachment] 
+            });
 
-        } catch (e) {
-            console.error(e);
-            await interaction.editReply(`❌ Error: ${e.message}`);
+        } catch (error) {
+            console.error('Error:', error);
+            await interaction.editReply(`**Error:** ${error.message}`);
         }
     }
 });
 
-if (TOKEN) client.login(TOKEN);
-else console.log('❌ No Token');
+// Start bot
+if (TOKEN) {
+    client.login(TOKEN);
+} else {
+    console.error('No token provided!');
+}
