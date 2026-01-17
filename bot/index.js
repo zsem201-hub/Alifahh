@@ -221,11 +221,11 @@ const lines=code.split('\n');
 const newLines=[];
 let injected=0;
 const deadPatterns=[
-()=>'local '+this.genVarName()+'=nil',
-()=>'local '+this.genVarName()+'=false',
-()=>'local '+this.genVarName()+'=0',
-()=>'local '+this.genVarName()+'=""',
-()=>'local '+this.genVarName()+'={}'
+()=>'local '+this.genVarName()+' = nil',
+()=>'local '+this.genVarName()+' = false',
+()=>'local '+this.genVarName()+' = 0',
+()=>'local '+this.genVarName()+' = ""',
+()=>'local '+this.genVarName()+' = {}'
 ];
 for(let i=0;i<this.rand(2,3);i++){
 newLines.push(deadPatterns[this.rand(0,deadPatterns.length-1)]());
@@ -242,9 +242,6 @@ this.logs.push('DeadCode: +'+injected);
 return newLines.join('\n');
 }
 
-// ==========================================
-// FIXED: SECURITY BLOCK WITH PROPER NEWLINES
-// ==========================================
 generateSecurityBlock(){
 if(this.stringStore.length===0)return '';
 this.decryptorName=this.genVarName();
@@ -256,10 +253,15 @@ finalBytes.push(str.charCodeAt(i)^this.xorKey);
 }
 return '{'+finalBytes.join(',')+'}';
 });
-const tableCode='local '+this.tableName+'={'+encryptedTable.join(',')+'}';
-const decryptCode='local '+this.decryptorName+'=function(t)\nlocal r=""\nfor i=1,#t do\nr=r..string.char(bit32.bxor(t[i],'+this.xorKey+'))\nend\nreturn r\nend';
+const tableCode='local '+this.tableName+' = {'+encryptedTable.join(',')+'}';
+const decryptCode=`local ${this.decryptorName} = function(t)
+local r = ""
+for i = 1, #t do
+r = r .. string.char(bit32.bxor(t[i], ${this.xorKey}))
+end
+return r
+end`;
 this.logs.push('XOR Key: '+this.xorKey);
-// FIXED: Return dengan newline di akhir
 return decryptCode+'\n'+tableCode+'\n';
 }
 
@@ -275,31 +277,6 @@ cleanCode(code){
 const lines=code.split('\n').map(l=>l.trim()).filter(l=>l!=='');
 this.logs.push('Cleaned');
 return lines.join('\n');
-}
-
-// ==========================================
-// FIXED: CONSERVATIVE SAFE MINIFIER
-// ==========================================
-minifySingleLine(code){
-// Step 1: Split ke lines, trim, filter empty
-let lines=code.split('\n').map(l=>l.trim()).filter(l=>l!=='');
-// Step 2: Join dengan semicolon + space (SAFE)
-let result=lines.join('; ');
-// Step 3: Reduce multiple spaces ke single (SAFE - tidak menghapus space antar kata)
-result=result.replace(/  +/g,' ');
-// Step 4: Remove space sebelum punctuation tertentu (SAFE)
-result=result.replace(/ ([,;)\]}])/g,'$1');
-// Step 5: Remove space setelah punctuation tertentu (SAFE)
-result=result.replace(/([(\[{]) /g,'$1');
-// Step 6: Cleanup double semicolons
-result=result.replace(/;+/g,';');
-result=result.replace(/; ?;/g,';');
-// Step 7: Remove semicolon sebelum end/else/until (Lua syntax)
-result=result.replace(/; ?(end|else|elseif|until)\b/g,' $1');
-// Step 8: Ensure space after keywords followed by identifier
-result=result.replace(/\b(local|function|return|if|then|else|elseif|do|while|for|in|and|or|not|end|until|repeat)\b([a-zA-Z_])/g,'$1 $2');
-this.logs.push('Minified: safe');
-return result;
 }
 
 addWrapper(code){
@@ -326,13 +303,12 @@ code=this.cleanCode(code);
 const securityBlock=this.generateSecurityBlock();
 code=this.restoreStrings(code);
 if(securityBlock){
-// FIXED: Security block sudah punya newline di akhir
 code=securityBlock+code;
 }
-code=this.minifySingleLine(code);
+// NO MINIFIER FOR MAX SECURITY - Keep newlines for safety
+this.logs.push('Format: multi-line (safe)');
 }else if(this.preset==='balanced'){
 code=this.cleanCode(code);
-code=this.minifySingleLine(code);
 }else{
 code=this.cleanCode(code);
 }
@@ -365,18 +341,17 @@ li{margin:8px 0}
 </div>
 <div class="box">
 <h3>⚖️ Balanced</h3>
-<p>+ Variable rename + String encode + Minify</p>
+<p>+ Variable rename + String encode</p>
 </div>
 <div class="box">
-<h3>🔒 Max Security (Hybrid)</h3>
+<h3>🔒 Max Security</h3>
 <ul>
 <li>✅ 10 Variable Styles</li>
-<li>✅ String Extraction</li>
+<li>✅ XOR String Encryption</li>
+<li>✅ Constant Table</li>
 <li>✅ Number Obfuscation</li>
 <li>✅ Dead Code Injection</li>
-<li class="new">🆕 XOR String Encryption</li>
-<li class="new">🆕 Constant Table</li>
-<li class="new">🆕 Safe Minify</li>
+<li>✅ Multi-line Safe Format</li>
 </ul>
 </div>
 <p class="footer">Delta Executor Compatible</p>
@@ -388,7 +363,7 @@ const TOKEN=process.env.DISCORD_TOKEN;
 const CLIENT_ID=process.env.CLIENT_ID;
 
 console.log('\n========================================');
-console.log('  LuaGuard v5.5 Hybrid (Fixed)');
+console.log('  LuaGuard v5.5 (No Minifier)');
 console.log('========================================');
 console.log('Token: '+(TOKEN?'✅ OK':'❌ MISSING'));
 console.log('Client ID: '+(CLIENT_ID?'✅ OK':'❌ MISSING'));
@@ -435,13 +410,12 @@ if(interaction.commandName==='help'){
 const embed=new EmbedBuilder()
 .setColor(0x58a6ff)
 .setTitle('🛡️ LuaGuard v5.5 - Help')
-.setDescription('Advanced Lua Obfuscator with Hybrid Protection')
+.setDescription('Advanced Lua Obfuscator')
 .addFields(
 {name:'⚡ Performance',value:'```\n• Comment removal\n• Basic cleaning\n```',inline:true},
-{name:'⚖️ Balanced',value:'```\n• + Variable rename\n• + String encode\n• + Minify\n```',inline:true},
-{name:'🔒 Max Security',value:'```\n• + XOR Encryption\n• + Constant Table\n• + Number obfuscation\n• + Dead code\n• + Safe minify\n```',inline:true},
-{name:'📋 Commands',value:'`/obfuscate` - Protect your script\n`/ping` - Check latency\n`/help` - This message',inline:false},
-{name:'🆕 v5.5 Fixes',value:'• Fixed minifier keyword breaking\n• Fixed security block separator\n• Safe semicolon joining',inline:false}
+{name:'⚖️ Balanced',value:'```\n• + Variable rename\n• + String encode\n```',inline:true},
+{name:'🔒 Max Security',value:'```\n• + XOR Encryption\n• + Constant Table\n• + Number obfuscation\n• + Dead code\n```',inline:true},
+{name:'📋 Commands',value:'`/obfuscate` - Protect your script\n`/ping` - Check latency\n`/help` - This message',inline:false}
 )
 .setFooter({text:'Delta Executor Compatible'})
 .setTimestamp();
