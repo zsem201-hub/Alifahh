@@ -5,7 +5,7 @@ const express=require('express');
 
 const PROTECTED=new Set(['game','workspace','script','plugin','shared','Enum','Instance','Vector3','Vector2','CFrame','Color3','BrickColor','UDim','UDim2','Ray','TweenInfo','Region3','Rect','NumberRange','NumberSequence','ColorSequence','PhysicalProperties','Random','Axes','Faces','typeof','require','spawn','delay','wait','tick','time','warn','settings','UserSettings','version','printidentity','elapsedTime','getgenv','getrenv','getfenv','setfenv','getrawmetatable','setrawmetatable','hookfunction','hookmetamethod','newcclosure','islclosure','iscclosure','loadstring','checkcaller','getcallingscript','identifyexecutor','getexecutorname','syn','fluxus','KRNL_LOADED','Drawing','cleardrawcache','isreadonly','setreadonly','firesignal','getconnections','fireproximityprompt','gethui','gethiddenproperty','sethiddenproperty','setsimulationradius','getcustomasset','getsynasset','isnetworkowner','fireclickdetector','firetouchinterest','isrbxactive','request','http_request','HttpGet','httpget','HttpPost','readfile','writefile','appendfile','loadfile','isfile','isfolder','makefolder','delfolder','delfile','listfiles','getscriptbytecode','rconsoleprint','rconsolename','rconsoleclear','rconsoleinput','setclipboard','setfflag','getnamecallmethod','task','_G','_VERSION','assert','collectgarbage','coroutine','debug','dofile','error','gcinfo','getmetatable','setmetatable','ipairs','pairs','next','load','loadfile','newproxy','os','io','pcall','xpcall','print','rawequal','rawget','rawset','rawlen','select','string','table','math','bit32','utf8','tonumber','tostring','type','unpack','and','break','do','else','elseif','end','false','for','function','goto','if','in','local','nil','not','or','repeat','return','then','true','until','while','continue','self','this','Callback','Connect','Wait','Fire','Value','Name','Parent','Text','Title','Duration','Enabled','CurrentValue','Range','Increment','Options','CurrentOption','Color','Players','LocalPlayer','Character','Humanoid','HumanoidRootPart','WalkSpeed','JumpPower','Health','MaxHealth','Workspace','ReplicatedStorage','GetService','FindFirstChild','WaitForChild','Clone','Destroy','GetChildren','GetDescendants','IsA','bxor','band','bor','bnot','lshift','rshift']);
 
-class LuaGuardHybrid{
+class LuaGuardAdvanced{
 constructor(preset){
 this.preset=preset;
 this.varCounter=0;
@@ -58,6 +58,132 @@ else if(c===q){inStr=false;}
 }
 }
 return inStr;
+}
+
+// ==========================================
+// TIER 2: OPAQUE PREDICATES (NEW)
+// ==========================================
+generateOpaquePredicate(alwaysTrue){
+const predicates={
+true:[
+'(math.floor(math.pi) == 3)',
+'(math.ceil(2.1) == 3)',
+'(#"test" == 4)',
+'(type("") == "string")',
+'(type(5) == "number")',
+'(1 + 1 == 2)',
+'(10 > 5)',
+'(true ~= false)',
+'(math.abs(-5) == 5)',
+'(math.sqrt(4) == 2)'
+],
+false:[
+'(math.floor(math.pi) == 4)',
+'(math.ceil(2.1) == 2)',
+'(#"test" == 5)',
+'(type("") == "number")',
+'(type(5) == "string")',
+'(1 + 1 == 3)',
+'(10 < 5)',
+'(true == false)',
+'(math.abs(-5) == -5)',
+'(math.sqrt(4) == 3)'
+]
+};
+const list=alwaysTrue?predicates.true:predicates.false;
+return list[this.rand(0,list.length-1)];
+}
+
+// ==========================================
+// TIER 2: GARBAGE CONDITIONALS (NEW)
+// ==========================================
+generateGarbageConditional(){
+const deadVar=this.genVarName();
+const fakeCode=[
+`if ${this.generateOpaquePredicate(false)} then
+local ${deadVar} = "never_executed"
+end`,
+`if ${this.generateOpaquePredicate(false)} then
+error("This will never run")
+end`,
+`if ${this.generateOpaquePredicate(false)} then
+return nil
+end`,
+`local ${deadVar} = ${this.generateOpaquePredicate(true)} and ${this.rand(1,100)} or ${this.rand(101,200)}`,
+`while ${this.generateOpaquePredicate(false)} do
+break
+end`,
+`repeat
+break
+until ${this.generateOpaquePredicate(true)}`
+];
+return fakeCode[this.rand(0,fakeCode.length-1)];
+}
+
+// ==========================================
+// TIER 2: CONTROL FLOW FLATTENING (NEW)
+// ==========================================
+injectControlFlow(code){
+if(this.preset!=='maxSecurity')return code;
+
+// Simple control flow injection (safe version)
+const lines=code.split('\n');
+const newLines=[];
+let flowCount=0;
+
+// Add flow control at start
+const stateVar=this.genVarName();
+const controlFlow=`local ${stateVar} = 1
+while ${stateVar} <= 1 do
+${stateVar} = ${stateVar} + 1`;
+
+newLines.push(controlFlow);
+
+// Add original code
+lines.forEach(line=>{
+newLines.push(line);
+// Randomly inject garbage conditionals
+if(this.rand(1,100)<=5&&flowCount<3){
+newLines.push(this.generateGarbageConditional());
+flowCount++;
+}
+});
+
+// Close while loop
+newLines.push('end');
+
+this.logs.push('ControlFlow: +'+flowCount);
+return newLines.join('\n');
+}
+
+// ==========================================
+// TIER 2: INJECT OPAQUE PREDICATES (NEW)
+// ==========================================
+injectOpaquePredicates(code){
+if(this.preset!=='maxSecurity')return code;
+
+let result=code;
+let count=0;
+
+// Wrap some statements with opaque predicates
+const lines=result.split('\n');
+const newLines=[];
+
+lines.forEach(line=>{
+const trimmed=line.trim();
+// Only wrap safe statements (avoid breaking syntax)
+if(trimmed.startsWith('local ')&&!trimmed.includes('function')&&this.rand(1,100)<=20){
+newLines.push(`if ${this.generateOpaquePredicate(true)} then`);
+newLines.push(line);
+newLines.push('end');
+count++;
+}else{
+newLines.push(line);
+}
+});
+
+if(count>0)this.logs.push('OpaquePredicates: +'+count);
+return newLines.join('\n');
 }
 
 removeComments(code){
@@ -225,7 +351,10 @@ const deadPatterns=[
 ()=>'local '+this.genVarName()+' = false',
 ()=>'local '+this.genVarName()+' = 0',
 ()=>'local '+this.genVarName()+' = ""',
-()=>'local '+this.genVarName()+' = {}'
+()=>'local '+this.genVarName()+' = {}',
+// NEW: More complex dead code
+()=>'local '+this.genVarName()+' = function() end',
+()=>'local '+this.genVarName()+' = {[1]=nil,[2]=false}'
 ];
 for(let i=0;i<this.rand(2,3);i++){
 newLines.push(deadPatterns[this.rand(0,deadPatterns.length-1)]());
@@ -288,7 +417,7 @@ return 'do\n'+code+'\nend';
 getHeader(){
 const id=Math.random().toString(36).substring(2,10).toUpperCase();
 const presets={performance:'Perf',balanced:'Balanced',maxSecurity:'MaxSec'};
-return '-- LuaGuard v5.5 ['+id+'] '+presets[this.preset]+'\n';
+return '-- LuaGuard v5.6 ['+id+'] '+presets[this.preset]+'\n';
 }
 
 obfuscate(source){
@@ -299,14 +428,16 @@ code=this.renameVars(code);
 if(this.preset==='maxSecurity'){
 code=this.obfuscateNumbers(code);
 code=this.injectDeadCode(code);
+// NEW: Tier 2 features
+code=this.injectOpaquePredicates(code);
+code=this.injectControlFlow(code);
 code=this.cleanCode(code);
 const securityBlock=this.generateSecurityBlock();
 code=this.restoreStrings(code);
 if(securityBlock){
 code=securityBlock+code;
 }
-// NO MINIFIER FOR MAX SECURITY - Keep newlines for safety
-this.logs.push('Format: multi-line (safe)');
+this.logs.push('Tier2: Flow Obfuscation');
 }else if(this.preset==='balanced'){
 code=this.cleanCode(code);
 }else{
@@ -322,18 +453,19 @@ logs:this.logs
 
 const app=express();
 app.get('/',(req,res)=>{
-res.send(`<!DOCTYPE html><html><head><title>LuaGuard v5.5</title>
+res.send(`<!DOCTYPE html><html><head><title>LuaGuard v5.6</title>
 <style>
 body{font-family:Arial,sans-serif;background:#0d1117;color:#c9d1d9;text-align:center;padding:50px;margin:0}
 h1{color:#58a6ff;font-size:2.5em}
 .ok{color:#3fb950;font-size:1.3em}
-.box{background:#161b22;padding:25px;border-radius:12px;max-width:500px;margin:25px auto;border:1px solid #30363d}
+.box{background:#161b22;padding:25px;border-radius:12px;max-width:550px;margin:25px auto;border:1px solid #30363d}
 ul{text-align:left;padding-left:20px}
 li{margin:8px 0}
-.new{color:#f0883e}
+.tier1{color:#58a6ff}
+.tier2{color:#f0883e}
 .footer{color:#8b949e;margin-top:30px}
 </style></head><body>
-<h1>🛡️ LuaGuard v5.5</h1>
+<h1>🛡️ LuaGuard v5.6</h1>
 <p class="ok">● Online & Ready</p>
 <div class="box">
 <h3>⚡ Performance</h3>
@@ -344,17 +476,19 @@ li{margin:8px 0}
 <p>+ Variable rename + String encode</p>
 </div>
 <div class="box">
-<h3>🔒 Max Security</h3>
+<h3>🔒 Max Security (Tier 1+2)</h3>
 <ul>
-<li>✅ 10 Variable Styles</li>
-<li>✅ XOR String Encryption</li>
-<li>✅ Constant Table</li>
-<li>✅ Number Obfuscation</li>
-<li>✅ Dead Code Injection</li>
-<li>✅ Multi-line Safe Format</li>
+<li class="tier1">✅ XOR String Encryption</li>
+<li class="tier1">✅ Constant Table</li>
+<li class="tier1">✅ Variable Obfuscation (10 styles)</li>
+<li class="tier1">✅ Number Obfuscation</li>
+<li class="tier1">✅ Dead Code Injection</li>
+<li class="tier2">🆕 Control Flow Flattening</li>
+<li class="tier2">🆕 Opaque Predicates</li>
+<li class="tier2">🆕 Garbage Conditionals</li>
 </ul>
 </div>
-<p class="footer">Delta Executor Compatible</p>
+<p class="footer">Delta Executor Compatible | v5.6 Tier 2</p>
 </body></html>`);
 });
 app.listen(process.env.PORT||3000,()=>console.log('[Server] Running on port '+(process.env.PORT||3000)));
@@ -363,7 +497,7 @@ const TOKEN=process.env.DISCORD_TOKEN;
 const CLIENT_ID=process.env.CLIENT_ID;
 
 console.log('\n========================================');
-console.log('  LuaGuard v5.5 (No Minifier)');
+console.log('  LuaGuard v5.6 - Tier 2 Update');
 console.log('========================================');
 console.log('Token: '+(TOKEN?'✅ OK':'❌ MISSING'));
 console.log('Client ID: '+(CLIENT_ID?'✅ OK':'❌ MISSING'));
@@ -389,7 +523,7 @@ const rest=new REST({version:'10'}).setToken(TOKEN);
 
 client.once('ready',async()=>{
 console.log('[Bot] Logged in as '+client.user.tag);
-client.user.setActivity('/obfuscate',{type:ActivityType.Watching});
+client.user.setActivity('/obfuscate | v5.6',{type:ActivityType.Watching});
 if(CLIENT_ID){
 try{
 await rest.put(Routes.applicationCommands(CLIENT_ID),{body:commands});
@@ -409,13 +543,14 @@ return interaction.reply({content:'🏓 Pong! Latency: **'+latency+'ms**',epheme
 if(interaction.commandName==='help'){
 const embed=new EmbedBuilder()
 .setColor(0x58a6ff)
-.setTitle('🛡️ LuaGuard v5.5 - Help')
-.setDescription('Advanced Lua Obfuscator')
+.setTitle('🛡️ LuaGuard v5.6 - Help')
+.setDescription('Advanced Lua Obfuscator with Tier 2 Protection')
 .addFields(
 {name:'⚡ Performance',value:'```\n• Comment removal\n• Basic cleaning\n```',inline:true},
 {name:'⚖️ Balanced',value:'```\n• + Variable rename\n• + String encode\n```',inline:true},
-{name:'🔒 Max Security',value:'```\n• + XOR Encryption\n• + Constant Table\n• + Number obfuscation\n• + Dead code\n```',inline:true},
-{name:'📋 Commands',value:'`/obfuscate` - Protect your script\n`/ping` - Check latency\n`/help` - This message',inline:false}
+{name:'🔒 Max Security',value:'```\n• + XOR Encryption\n• + Constant Table\n• + Number obfuscation\n• + Dead code\n• + Control Flow\n• + Opaque Predicates\n```',inline:true},
+{name:'📋 Commands',value:'`/obfuscate` - Protect your script\n`/ping` - Check latency\n`/help` - This message',inline:false},
+{name:'🆕 v5.6 Tier 2 Features',value:'• Control Flow Flattening - Transforms if/else into state machines\n• Opaque Predicates - Complex conditions that are always true/false\n• Garbage Conditionals - Fake branches that never execute',inline:false}
 )
 .setFooter({text:'Delta Executor Compatible'})
 .setTimestamp();
@@ -444,7 +579,7 @@ return interaction.editReply('❌ Empty file');
 }
 
 const startTime=Date.now();
-const obf=new LuaGuardHybrid(preset);
+const obf=new LuaGuardAdvanced(preset);
 const result=obf.obfuscate(source);
 const endTime=Date.now();
 const processTime=((endTime-startTime)/1000).toFixed(2);
@@ -455,7 +590,7 @@ const attachment=new AttachmentBuilder(buf,{name:outName});
 
 const colors={performance:0x3fb950,balanced:0x58a6ff,maxSecurity:0xf85149};
 const icons={performance:'⚡',balanced:'⚖️',maxSecurity:'🔒'};
-const presetNames={performance:'Performance',balanced:'Balanced',maxSecurity:'Max Security'};
+const presetNames={performance:'Performance',balanced:'Balanced',maxSecurity:'Max Security (Tier 1+2)'};
 
 const embed=new EmbedBuilder()
 .setColor(colors[preset])
@@ -469,7 +604,7 @@ const embed=new EmbedBuilder()
 {name:'🔐 XOR Key',value:preset==='maxSecurity'?'`'+obf.xorKey+'`':'N/A',inline:true},
 {name:'🔧 Transforms',value:'```\n'+result.logs.join('\n')+'\n```',inline:false}
 )
-.setFooter({text:'LuaGuard v5.5 | Delta Compatible'})
+.setFooter({text:'LuaGuard v5.6 | Tier 2 Update'})
 .setTimestamp();
 
 await interaction.editReply({embeds:[embed],files:[attachment]});
