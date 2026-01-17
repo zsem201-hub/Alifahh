@@ -3,7 +3,7 @@ const {Client,GatewayIntentBits,REST,Routes,SlashCommandBuilder,ActivityType,Emb
 const axios=require('axios');
 const express=require('express');
 
-const PROTECTED=new Set(['game','workspace','script','plugin','shared','Enum','Instance','Vector3','Vector2','CFrame','Color3','BrickColor','UDim','UDim2','Ray','TweenInfo','Region3','Rect','NumberRange','NumberSequence','ColorSequence','PhysicalProperties','Random','Axes','Faces','typeof','require','spawn','delay','wait','tick','time','warn','settings','UserSettings','version','printidentity','elapsedTime','getgenv','getrenv','getfenv','setfenv','getrawmetatable','setrawmetatable','hookfunction','hookmetamethod','newcclosure','islclosure','iscclosure','loadstring','checkcaller','getcallingscript','identifyexecutor','getexecutorname','syn','fluxus','KRNL_LOADED','Drawing','cleardrawcache','isreadonly','setreadonly','firesignal','getconnections','fireproximityprompt','gethui','gethiddenproperty','sethiddenproperty','setsimulationradius','getcustomasset','getsynasset','isnetworkowner','fireclickdetector','firetouchinterest','isrbxactive','request','http_request','HttpGet','httpget','HttpPost','readfile','writefile','appendfile','loadfile','isfile','isfolder','makefolder','delfolder','delfile','listfiles','getscriptbytecode','rconsoleprint','rconsolename','rconsoleclear','rconsoleinput','setclipboard','setfflag','getnamecallmethod','task','_G','_VERSION','assert','collectgarbage','coroutine','debug','dofile','error','gcinfo','getmetatable','setmetatable','ipairs','pairs','next','load','loadfile','newproxy','os','io','pcall','xpcall','print','rawequal','rawget','rawset','rawlen','select','string','table','math','bit32','utf8','tonumber','tostring','type','unpack','and','break','do','else','elseif','end','false','for','function','goto','if','in','local','nil','not','or','repeat','return','then','true','until','while','continue','self','this','Callback','Connect','Wait','Fire','Value','Name','Parent','Text','Title','Duration','Enabled','CurrentValue','Range','Increment','Options','CurrentOption','Color','Players','LocalPlayer','Character','Humanoid','HumanoidRootPart','Head','Torso','WalkSpeed','JumpPower','Health','MaxHealth','Workspace','ReplicatedStorage','ServerStorage','ServerScriptService','StarterGui','StarterPack','StarterPlayer','Teams','SoundService','Lighting','Debris','TweenService','RunService','UserInputService','ContextActionService','GuiService','MarketplaceService','GetService','FindFirstChild','WaitForChild','Clone','Destroy','ClearAllChildren','GetChildren','GetDescendants','IsA','bxor','band','bor','bnot','lshift','rshift','bit32']);
+const PROTECTED=new Set(['game','workspace','script','plugin','shared','Enum','Instance','Vector3','Vector2','CFrame','Color3','BrickColor','UDim','UDim2','Ray','TweenInfo','Region3','Rect','NumberRange','NumberSequence','ColorSequence','PhysicalProperties','Random','Axes','Faces','typeof','require','spawn','delay','wait','tick','time','warn','settings','UserSettings','version','printidentity','elapsedTime','getgenv','getrenv','getfenv','setfenv','getrawmetatable','setrawmetatable','hookfunction','hookmetamethod','newcclosure','islclosure','iscclosure','loadstring','checkcaller','getcallingscript','identifyexecutor','getexecutorname','syn','fluxus','KRNL_LOADED','Drawing','cleardrawcache','isreadonly','setreadonly','firesignal','getconnections','fireproximityprompt','gethui','gethiddenproperty','sethiddenproperty','setsimulationradius','getcustomasset','getsynasset','isnetworkowner','fireclickdetector','firetouchinterest','isrbxactive','request','http_request','HttpGet','httpget','HttpPost','readfile','writefile','appendfile','loadfile','isfile','isfolder','makefolder','delfolder','delfile','listfiles','getscriptbytecode','rconsoleprint','rconsolename','rconsoleclear','rconsoleinput','setclipboard','setfflag','getnamecallmethod','task','_G','_VERSION','assert','collectgarbage','coroutine','debug','dofile','error','gcinfo','getmetatable','setmetatable','ipairs','pairs','next','load','loadfile','newproxy','os','io','pcall','xpcall','print','rawequal','rawget','rawset','rawlen','select','string','table','math','bit32','utf8','tonumber','tostring','type','unpack','and','break','do','else','elseif','end','false','for','function','goto','if','in','local','nil','not','or','repeat','return','then','true','until','while','continue','self','this','Callback','Connect','Wait','Fire','Value','Name','Parent','Text','Title','Duration','Enabled','CurrentValue','Range','Increment','Options','CurrentOption','Color','Players','LocalPlayer','Character','Humanoid','HumanoidRootPart','WalkSpeed','JumpPower','Health','MaxHealth','Workspace','ReplicatedStorage','GetService','FindFirstChild','WaitForChild','Clone','Destroy','GetChildren','GetDescendants','IsA','bxor','band','bor','bnot','lshift','rshift']);
 
 class LuaGuardHybrid{
 constructor(preset){
@@ -242,6 +242,9 @@ this.logs.push('DeadCode: +'+injected);
 return newLines.join('\n');
 }
 
+// ==========================================
+// FIXED: SECURITY BLOCK WITH PROPER NEWLINES
+// ==========================================
 generateSecurityBlock(){
 if(this.stringStore.length===0)return '';
 this.decryptorName=this.genVarName();
@@ -254,9 +257,10 @@ finalBytes.push(str.charCodeAt(i)^this.xorKey);
 return '{'+finalBytes.join(',')+'}';
 });
 const tableCode='local '+this.tableName+'={'+encryptedTable.join(',')+'}';
-const decryptCode='local '+this.decryptorName+'=function(t) local r="" for i=1,#t do r=r..string.char(bit32.bxor(t[i],'+this.xorKey+')) end return r end';
+const decryptCode='local '+this.decryptorName+'=function(t)\nlocal r=""\nfor i=1,#t do\nr=r..string.char(bit32.bxor(t[i],'+this.xorKey+'))\nend\nreturn r\nend';
 this.logs.push('XOR Key: '+this.xorKey);
-return decryptCode+' '+tableCode+' ';
+// FIXED: Return dengan newline di akhir
+return decryptCode+'\n'+tableCode+'\n';
 }
 
 restoreStrings(code){
@@ -274,42 +278,34 @@ return lines.join('\n');
 }
 
 // ==========================================
-// FIXED SAFE MINIFIER - NO KEYWORD BREAKING
+// FIXED: CONSERVATIVE SAFE MINIFIER
 // ==========================================
 minifySingleLine(code){
-let result=code;
-// Step 1: Replace newlines with semicolons (safe statement separator)
-result=result.replace(/\n+/g,';');
-// Step 2: Remove multiple semicolons
+// Step 1: Split ke lines, trim, filter empty
+let lines=code.split('\n').map(l=>l.trim()).filter(l=>l!=='');
+// Step 2: Join dengan semicolon + space (SAFE)
+let result=lines.join('; ');
+// Step 3: Reduce multiple spaces ke single (SAFE - tidak menghapus space antar kata)
+result=result.replace(/  +/g,' ');
+// Step 4: Remove space sebelum punctuation tertentu (SAFE)
+result=result.replace(/ ([,;)\]}])/g,'$1');
+// Step 5: Remove space setelah punctuation tertentu (SAFE)
+result=result.replace(/([(\[{]) /g,'$1');
+// Step 6: Cleanup double semicolons
 result=result.replace(/;+/g,';');
-// Step 3: Remove leading/trailing semicolons
-result=result.replace(/^;+|;+$/g,'');
-// Step 4: Reduce multiple spaces to single space (SAFE - keeps word boundaries)
-result=result.replace(/[ \t]+/g,' ');
-// Step 5: Remove spaces around SAFE punctuation only (NOT touching letters)
-result=result.replace(/ ?([\[\]{}(),;]) ?/g,'$1');
-// Step 6: Remove space after ( and before )
-result=result.replace(/\( /g,'(');
-result=result.replace(/ \)/g,')');
-// Step 7: Remove space around = but ONLY when surrounded by non-letters
-result=result.replace(/ ?= ?/g,'=');
-// Step 8: Fix cases where = removal broke things (like "local x =1" -> "local x=1" is OK)
-// Step 9: Ensure semicolon after 'end' if followed by keyword
-result=result.replace(/end([a-zA-Z])/g,'end;$1');
-// Step 10: Remove unnecessary semicolons before 'end', 'else', 'elseif', 'until'
-result=result.replace(/;(end|else|elseif|until)/g,' $1');
-// Step 11: Fix 'then' and 'do' followed directly by code
-result=result.replace(/then([a-zA-Z_])/g,'then $1');
-result=result.replace(/do([a-zA-Z_])/g,'do $1');
-result=result.replace(/else([a-zA-Z_])/g,'else $1');
-this.logs.push('Minified: compact');
-return result.trim();
+result=result.replace(/; ?;/g,';');
+// Step 7: Remove semicolon sebelum end/else/until (Lua syntax)
+result=result.replace(/; ?(end|else|elseif|until)\b/g,' $1');
+// Step 8: Ensure space after keywords followed by identifier
+result=result.replace(/\b(local|function|return|if|then|else|elseif|do|while|for|in|and|or|not|end|until|repeat)\b([a-zA-Z_])/g,'$1 $2');
+this.logs.push('Minified: safe');
+return result;
 }
 
 addWrapper(code){
 if(this.preset==='performance')return code;
 this.logs.push('Wrapped');
-return 'do '+code+' end';
+return 'do\n'+code+'\nend';
 }
 
 getHeader(){
@@ -330,6 +326,7 @@ code=this.cleanCode(code);
 const securityBlock=this.generateSecurityBlock();
 code=this.restoreStrings(code);
 if(securityBlock){
+// FIXED: Security block sudah punya newline di akhir
 code=securityBlock+code;
 }
 code=this.minifySingleLine(code);
@@ -379,7 +376,7 @@ li{margin:8px 0}
 <li>✅ Dead Code Injection</li>
 <li class="new">🆕 XOR String Encryption</li>
 <li class="new">🆕 Constant Table</li>
-<li class="new">🆕 Compact Output</li>
+<li class="new">🆕 Safe Minify</li>
 </ul>
 </div>
 <p class="footer">Delta Executor Compatible</p>
@@ -391,7 +388,7 @@ const TOKEN=process.env.DISCORD_TOKEN;
 const CLIENT_ID=process.env.CLIENT_ID;
 
 console.log('\n========================================');
-console.log('  LuaGuard v5.5 Hybrid');
+console.log('  LuaGuard v5.5 Hybrid (Fixed)');
 console.log('========================================');
 console.log('Token: '+(TOKEN?'✅ OK':'❌ MISSING'));
 console.log('Client ID: '+(CLIENT_ID?'✅ OK':'❌ MISSING'));
@@ -442,9 +439,9 @@ const embed=new EmbedBuilder()
 .addFields(
 {name:'⚡ Performance',value:'```\n• Comment removal\n• Basic cleaning\n```',inline:true},
 {name:'⚖️ Balanced',value:'```\n• + Variable rename\n• + String encode\n• + Minify\n```',inline:true},
-{name:'🔒 Max Security',value:'```\n• + XOR Encryption\n• + Constant Table\n• + Number obfuscation\n• + Dead code\n• + Compact output\n```',inline:true},
+{name:'🔒 Max Security',value:'```\n• + XOR Encryption\n• + Constant Table\n• + Number obfuscation\n• + Dead code\n• + Safe minify\n```',inline:true},
 {name:'📋 Commands',value:'`/obfuscate` - Protect your script\n`/ping` - Check latency\n`/help` - This message',inline:false},
-{name:'🆕 v5.5 Updates',value:'• XOR String Encryption\n• Constant Table Storage\n• Fixed Safe Minifier\n• Hybrid Max Security',inline:false}
+{name:'🆕 v5.5 Fixes',value:'• Fixed minifier keyword breaking\n• Fixed security block separator\n• Safe semicolon joining',inline:false}
 )
 .setFooter({text:'Delta Executor Compatible'})
 .setTimestamp();
@@ -498,7 +495,7 @@ const embed=new EmbedBuilder()
 {name:'🔐 XOR Key',value:preset==='maxSecurity'?'`'+obf.xorKey+'`':'N/A',inline:true},
 {name:'🔧 Transforms',value:'```\n'+result.logs.join('\n')+'\n```',inline:false}
 )
-.setFooter({text:'LuaGuard v5.5 Hybrid | Delta Compatible'})
+.setFooter({text:'LuaGuard v5.5 | Delta Compatible'})
 .setTimestamp();
 
 await interaction.editReply({embeds:[embed],files:[attachment]});
