@@ -3,9 +3,9 @@ const {Client,GatewayIntentBits,REST,Routes,SlashCommandBuilder,ActivityType,Emb
 const axios=require('axios');
 const express=require('express');
 
-const PROTECTED=new Set(['game','workspace','script','plugin','shared','Enum','Instance','Vector3','Vector2','CFrame','Color3','BrickColor','UDim','UDim2','Ray','TweenInfo','Region3','Rect','NumberRange','NumberSequence','ColorSequence','PhysicalProperties','Random','Axes','Faces','typeof','require','spawn','delay','wait','tick','time','warn','settings','UserSettings','version','printidentity','elapsedTime','getgenv','getrenv','getfenv','setfenv','getrawmetatable','setrawmetatable','hookfunction','hookmetamethod','newcclosure','islclosure','iscclosure','loadstring','checkcaller','getcallingscript','identifyexecutor','getexecutorname','syn','fluxus','KRNL_LOADED','Drawing','cleardrawcache','isreadonly','setreadonly','firesignal','getconnections','fireproximityprompt','gethui','gethiddenproperty','sethiddenproperty','setsimulationradius','getcustomasset','getsynasset','isnetworkowner','fireclickdetector','firetouchinterest','isrbxactive','request','http_request','HttpGet','httpget','HttpPost','readfile','writefile','appendfile','loadfile','isfile','isfolder','makefolder','delfolder','delfile','listfiles','getscriptbytecode','rconsoleprint','rconsolename','rconsoleclear','rconsoleinput','setclipboard','setfflag','getnamecallmethod','task','_G','_VERSION','assert','collectgarbage','coroutine','debug','dofile','error','gcinfo','getmetatable','setmetatable','ipairs','pairs','next','load','loadfile','newproxy','os','io','pcall','xpcall','print','rawequal','rawget','rawset','rawlen','select','string','table','math','bit32','utf8','tonumber','tostring','type','unpack','and','break','do','else','elseif','end','false','for','function','goto','if','in','local','nil','not','or','repeat','return','then','true','until','while','continue','self','this','Callback','Connect','Wait','Fire','Value','Name','Parent','Text','Title','Duration','Enabled','CurrentValue','Range','Increment','Options','CurrentOption','Color','Players','LocalPlayer','Character','Humanoid','HumanoidRootPart','WalkSpeed','JumpPower','Health','MaxHealth','Workspace','ReplicatedStorage','GetService','FindFirstChild','WaitForChild','Clone','Destroy','GetChildren','GetDescendants','IsA','bxor','band','bor','bnot','lshift','rshift']);
+const PROTECTED=new Set(['game','workspace','script','plugin','shared','Enum','Instance','Vector3','Vector2','CFrame','Color3','BrickColor','UDim','UDim2','Ray','TweenInfo','Region3','Rect','NumberRange','NumberSequence','ColorSequence','PhysicalProperties','Random','Axes','Faces','typeof','require','spawn','delay','wait','tick','time','warn','settings','UserSettings','version','printidentity','elapsedTime','getgenv','getrenv','getfenv','setfenv','getrawmetatable','setrawmetatable','hookfunction','hookmetamethod','newcclosure','islclosure','iscclosure','loadstring','checkcaller','getcallingscript','identifyexecutor','getexecutorname','syn','fluxus','KRNL_LOADED','Drawing','cleardrawcache','isreadonly','setreadonly','firesignal','getconnections','fireproximityprompt','gethui','gethiddenproperty','sethiddenproperty','setsimulationradius','getcustomasset','getsynasset','isnetworkowner','fireclickdetector','firetouchinterest','isrbxactive','request','http_request','HttpGet','httpget','HttpPost','readfile','writefile','appendfile','loadfile','isfile','isfolder','makefolder','delfolder','delfile','listfiles','getscriptbytecode','rconsoleprint','rconsolename','rconsoleclear','rconsoleinput','setclipboard','setfflag','getnamecallmethod','task','_G','_VERSION','assert','collectgarbage','coroutine','debug','dofile','error','gcinfo','getmetatable','setmetatable','ipairs','pairs','next','load','loadfile','newproxy','os','io','pcall','xpcall','print','rawequal','rawget','rawset','rawlen','select','string','table','math','bit32','utf8','tonumber','tostring','type','unpack','and','break','do','else','elseif','end','false','for','function','goto','if','in','local','nil','not','or','repeat','return','then','true','until','while','continue','self','this','Callback','Connect','Wait','Fire','Value','Name','Parent','Text','Title','Duration','Enabled','CurrentValue','Range','Increment','Options','CurrentOption','Color','Players','LocalPlayer','Character','Humanoid','HumanoidRootPart','WalkSpeed','JumpPower','Health','MaxHealth','Workspace','ReplicatedStorage','GetService','FindFirstChild','WaitForChild','Clone','Destroy','GetChildren','GetDescendants','IsA','bxor','band','bor','bnot','lshift','rshift','UH','UHCore','UHLoaded','err','SN']);
 
-class LuaGuardAdvanced{
+class LuaGuardStable{
 constructor(preset){
 this.preset=preset;
 this.varCounter=0;
@@ -60,132 +60,6 @@ else if(c===q){inStr=false;}
 return inStr;
 }
 
-// ==========================================
-// TIER 2: OPAQUE PREDICATES (NEW)
-// ==========================================
-generateOpaquePredicate(alwaysTrue){
-const predicates={
-true:[
-'(math.floor(math.pi) == 3)',
-'(math.ceil(2.1) == 3)',
-'(#"test" == 4)',
-'(type("") == "string")',
-'(type(5) == "number")',
-'(1 + 1 == 2)',
-'(10 > 5)',
-'(true ~= false)',
-'(math.abs(-5) == 5)',
-'(math.sqrt(4) == 2)'
-],
-false:[
-'(math.floor(math.pi) == 4)',
-'(math.ceil(2.1) == 2)',
-'(#"test" == 5)',
-'(type("") == "number")',
-'(type(5) == "string")',
-'(1 + 1 == 3)',
-'(10 < 5)',
-'(true == false)',
-'(math.abs(-5) == -5)',
-'(math.sqrt(4) == 3)'
-]
-};
-const list=alwaysTrue?predicates.true:predicates.false;
-return list[this.rand(0,list.length-1)];
-}
-
-// ==========================================
-// TIER 2: GARBAGE CONDITIONALS (NEW)
-// ==========================================
-generateGarbageConditional(){
-const deadVar=this.genVarName();
-const fakeCode=[
-`if ${this.generateOpaquePredicate(false)} then
-local ${deadVar} = "never_executed"
-end`,
-`if ${this.generateOpaquePredicate(false)} then
-error("This will never run")
-end`,
-`if ${this.generateOpaquePredicate(false)} then
-return nil
-end`,
-`local ${deadVar} = ${this.generateOpaquePredicate(true)} and ${this.rand(1,100)} or ${this.rand(101,200)}`,
-`while ${this.generateOpaquePredicate(false)} do
-break
-end`,
-`repeat
-break
-until ${this.generateOpaquePredicate(true)}`
-];
-return fakeCode[this.rand(0,fakeCode.length-1)];
-}
-
-// ==========================================
-// TIER 2: CONTROL FLOW FLATTENING (NEW)
-// ==========================================
-injectControlFlow(code){
-if(this.preset!=='maxSecurity')return code;
-
-// Simple control flow injection (safe version)
-const lines=code.split('\n');
-const newLines=[];
-let flowCount=0;
-
-// Add flow control at start
-const stateVar=this.genVarName();
-const controlFlow=`local ${stateVar} = 1
-while ${stateVar} <= 1 do
-${stateVar} = ${stateVar} + 1`;
-
-newLines.push(controlFlow);
-
-// Add original code
-lines.forEach(line=>{
-newLines.push(line);
-// Randomly inject garbage conditionals
-if(this.rand(1,100)<=5&&flowCount<3){
-newLines.push(this.generateGarbageConditional());
-flowCount++;
-}
-});
-
-// Close while loop
-newLines.push('end');
-
-this.logs.push('ControlFlow: +'+flowCount);
-return newLines.join('\n');
-}
-
-// ==========================================
-// TIER 2: INJECT OPAQUE PREDICATES (NEW)
-// ==========================================
-injectOpaquePredicates(code){
-if(this.preset!=='maxSecurity')return code;
-
-let result=code;
-let count=0;
-
-// Wrap some statements with opaque predicates
-const lines=result.split('\n');
-const newLines=[];
-
-lines.forEach(line=>{
-const trimmed=line.trim();
-// Only wrap safe statements (avoid breaking syntax)
-if(trimmed.startsWith('local ')&&!trimmed.includes('function')&&this.rand(1,100)<=20){
-newLines.push(`if ${this.generateOpaquePredicate(true)} then`);
-newLines.push(line);
-newLines.push('end');
-count++;
-}else{
-newLines.push(line);
-}
-});
-
-if(count>0)this.logs.push('OpaquePredicates: +'+count);
-return newLines.join('\n');
-}
-
 removeComments(code){
 let result=code;
 let count=0;
@@ -210,6 +84,9 @@ if(count>0)this.logs.push('Comments: -'+count);
 return result;
 }
 
+// ==========================================
+// IMPROVED STRING EXTRACTION
+// ==========================================
 extractStrings(code){
 if(this.preset==='performance')return code;
 let result='',i=0;
@@ -217,6 +94,7 @@ while(i<code.length){
 if((code[i]==='"'||code[i]==="'")&&(i===0||code[i-1]!=='\\')){
 const q=code[i];
 let content='';
+const startIdx=i;
 i++;
 while(i<code.length){
 if(code[i]==='\\'&&i+1<code.length){
@@ -230,9 +108,16 @@ i++;
 }
 }
 i++;
+// More strict safety check
 const hasControlChars=/[\x00-\x1F\x7F-\xFF]/.test(content);
 const hasComplexEscape=/\\[^nrt"'\\]/.test(content);
-const isSafe=content.length>=1&&content.length<=500&&!hasControlChars&&!hasComplexEscape;
+const hasNewline=content.includes('\n')||content.includes('\r');
+// Skip HttpGet URLs and other special strings
+const isUrl=content.includes('http')||content.includes('://');
+const isPath=content.includes('/')||content.includes('\\');
+
+const isSafe=content.length>=1&&content.length<=200&&!hasControlChars&&!hasComplexEscape&&!hasNewline&&!isUrl&&!isPath;
+
 if(isSafe&&this.preset==='maxSecurity'){
 const id=this.stringStore.length;
 this.stringStore.push(content);
@@ -276,50 +161,62 @@ if(m===2){const b=num+this.rand(1,50);return '('+b+'-'+(b-num)+')';}
 return num.toString();
 }
 
+// ==========================================
+// IMPROVED VARIABLE RENAMING
+// ==========================================
 renameVars(code){
 if(this.preset==='performance')return code;
 let result=code;
-const vars=[];
+const vars=new Map();
+
+// Collect ALL variables more comprehensively
+const patterns=[
+/\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)/g,
+/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*=/g,
+/function\s*\(([^)]*)\)/g,
+/for\s+([a-zA-Z_][a-zA-Z0-9_]*)/g
+];
+
+patterns.forEach(pattern=>{
 let m;
-const localRe=/\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
-while((m=localRe.exec(code))!==null){
-if(!PROTECTED.has(m[1])&&!this.varMap.has(m[1])&&!m[1].startsWith('__LSTR')){
-const n=this.genVarName();
-this.varMap.set(m[1],n);
-vars.push({old:m[1],new:n});
+while((m=pattern.exec(code))!==null){
+const varName=m[1];
+if(!varName)continue;
+// Handle function params
+if(varName.includes(',')){
+varName.split(',').forEach(v=>{
+const cleaned=v.trim();
+if(cleaned&&!PROTECTED.has(cleaned)&&!cleaned.startsWith('__LSTR')){
+if(!vars.has(cleaned)){
+vars.set(cleaned,this.genVarName());
 }
-}
-const funcRe=/function\s*[a-zA-Z_.:]*\s*\(([^)]*)\)/g;
-while((m=funcRe.exec(code))!==null){
-if(m[1].trim()){
-m[1].split(',').map(p=>p.trim()).filter(p=>p&&p!=='...').forEach(p=>{
-if(!PROTECTED.has(p)&&!this.varMap.has(p)&&!p.startsWith('__LSTR')){
-const n=this.genVarName();
-this.varMap.set(p,n);
-vars.push({old:p,new:n});
 }
 });
+}else if(!PROTECTED.has(varName)&&!varName.startsWith('__LSTR')){
+if(!vars.has(varName)){
+vars.set(varName,this.genVarName());
 }
 }
-const forRe=/\bfor\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:,\s*([a-zA-Z_][a-zA-Z0-9_]*))?\s*[=,in]/g;
-while((m=forRe.exec(code))!==null){
-[m[1],m[2]].filter(Boolean).forEach(v=>{
-if(!PROTECTED.has(v)&&!this.varMap.has(v)&&!v.startsWith('__LSTR')){
-const n=this.genVarName();
-this.varMap.set(v,n);
-vars.push({old:v,new:n});
 }
 });
-}
-vars.sort((a,b)=>b.old.length-a.old.length);
-for(const v of vars){
-const re=new RegExp('\\b'+v.old+'\\b','g');
-result=result.replace(re,(match,offset)=>{
+
+// Apply renaming with boundary check
+const sortedVars=Array.from(vars.entries()).sort((a,b)=>b[0].length-a[0].length);
+for(const[oldName,newName]of sortedVars){
+const regex=new RegExp(`\\b${oldName}\\b`,'g');
+result=result.replace(regex,(match,offset)=>{
 if(this.isInString(result,offset))return match;
-return v.new;
+// Additional check: make sure it's not part of a larger identifier
+const prevChar=offset>0?result[offset-1]:'';
+const nextChar=offset+match.length<result.length?result[offset+match.length]:'';
+if(/[a-zA-Z0-9_]/.test(prevChar)||/[a-zA-Z0-9_]/.test(nextChar)){
+return match;
+}
+return newName;
 });
 }
-if(vars.length>0)this.logs.push('Variables: '+vars.length);
+
+if(vars.size>0)this.logs.push('Variables: '+vars.size);
 return result;
 }
 
@@ -331,7 +228,9 @@ const result=code.replace(/\b(\d+)\b/g,(match,num,offset)=>{
 if(self.isInString(code,offset))return match;
 const prev=offset>0?code[offset-1]:'';
 const next=offset+match.length<code.length?code[offset+match.length]:'';
-if(prev==='.'||next==='.'||prev==='_'||prev==='x'||prev==='X'||prev==='L')return match;
+if(prev==='.'||next==='.'||prev==='_'||prev==='x'||prev==='X'||prev==='L'||prev==='S'||prev==='T'||prev==='R'){
+return match;
+}
 const n=parseInt(num);
 if(isNaN(n)||n<10||n>9999)return match;
 count++;
@@ -351,18 +250,18 @@ const deadPatterns=[
 ()=>'local '+this.genVarName()+' = false',
 ()=>'local '+this.genVarName()+' = 0',
 ()=>'local '+this.genVarName()+' = ""',
-()=>'local '+this.genVarName()+' = {}',
-// NEW: More complex dead code
-()=>'local '+this.genVarName()+' = function() end',
-()=>'local '+this.genVarName()+' = {[1]=nil,[2]=false}'
+()=>'local '+this.genVarName()+' = {}'
 ];
+// Add 2-3 at the beginning
 for(let i=0;i<this.rand(2,3);i++){
 newLines.push(deadPatterns[this.rand(0,deadPatterns.length-1)]());
 injected++;
 }
+// Add original lines
 for(let i=0;i<lines.length;i++){
 newLines.push(lines[i]);
-if(i>0&&i<lines.length-1&&this.rand(1,100)<=10){
+// Randomly inject dead code (5% chance)
+if(i>0&&i<lines.length-1&&this.rand(1,100)<=5){
 newLines.push(deadPatterns[this.rand(0,deadPatterns.length-1)]());
 injected++;
 }
@@ -371,18 +270,29 @@ this.logs.push('DeadCode: +'+injected);
 return newLines.join('\n');
 }
 
+// ==========================================
+// IMPROVED SECURITY BLOCK
+// ==========================================
 generateSecurityBlock(){
 if(this.stringStore.length===0)return '';
 this.decryptorName=this.genVarName();
 this.tableName=this.genVarName();
-const encryptedTable=this.stringStore.map(str=>{
-const finalBytes=[];
-for(let i=0;i<str.length;i++){
-finalBytes.push(str.charCodeAt(i)^this.xorKey);
+
+// Ensure complete table generation
+const encryptedTable=[];
+for(let i=0;i<this.stringStore.length;i++){
+const str=this.stringStore[i];
+const bytes=[];
+for(let j=0;j<str.length;j++){
+bytes.push(str.charCodeAt(j)^this.xorKey);
 }
-return '{'+finalBytes.join(',')+'}';
-});
+encryptedTable.push('{'+bytes.join(',')+'}');
+}
+
+// Build table with proper formatting
 const tableCode='local '+this.tableName+' = {'+encryptedTable.join(',')+'}';
+
+// Build decryptor with proper formatting
 const decryptCode=`local ${this.decryptorName} = function(t)
 local r = ""
 for i = 1, #t do
@@ -390,7 +300,9 @@ r = r .. string.char(bit32.bxor(t[i], ${this.xorKey}))
 end
 return r
 end`;
+
 this.logs.push('XOR Key: '+this.xorKey);
+this.logs.push('ConstTable: '+this.stringStore.length+' entries');
 return decryptCode+'\n'+tableCode+'\n';
 }
 
@@ -398,7 +310,10 @@ restoreStrings(code){
 if(this.stringStore.length===0)return code;
 return code.replace(/__LSTR(\d+)__/g,(match,id)=>{
 const idx=parseInt(id);
+if(idx>=0&&idx<this.stringStore.length){
 return this.decryptorName+'('+this.tableName+'['+(idx+1)+'])';
+}
+return match; // Keep original if index invalid
 });
 }
 
@@ -417,33 +332,54 @@ return 'do\n'+code+'\nend';
 getHeader(){
 const id=Math.random().toString(36).substring(2,10).toUpperCase();
 const presets={performance:'Perf',balanced:'Balanced',maxSecurity:'MaxSec'};
-return '-- LuaGuard v5.6 ['+id+'] '+presets[this.preset]+'\n';
+return '-- LuaGuard v5.6.1 ['+id+'] '+presets[this.preset]+'\n';
 }
 
+// ==========================================
+// MAIN OBFUSCATE WITH VALIDATION
+// ==========================================
 obfuscate(source){
 let code=source;
+
+// Save original for fallback
+const originalCode=source;
+
+try{
 code=this.removeComments(code);
 code=this.extractStrings(code);
 code=this.renameVars(code);
+
 if(this.preset==='maxSecurity'){
 code=this.obfuscateNumbers(code);
 code=this.injectDeadCode(code);
-// NEW: Tier 2 features
-code=this.injectOpaquePredicates(code);
-code=this.injectControlFlow(code);
 code=this.cleanCode(code);
 const securityBlock=this.generateSecurityBlock();
 code=this.restoreStrings(code);
 if(securityBlock){
 code=securityBlock+code;
 }
-this.logs.push('Tier2: Flow Obfuscation');
 }else if(this.preset==='balanced'){
 code=this.cleanCode(code);
 }else{
 code=this.cleanCode(code);
 }
 code=this.addWrapper(code);
+
+// Basic validation
+if(code.split('(').length!==code.split(')').length){
+this.logs.push('⚠️ Warning: Bracket mismatch detected');
+}
+if(code.split('{').length!==code.split('}').length){
+this.logs.push('⚠️ Warning: Brace mismatch detected');
+}
+
+}catch(e){
+console.error('Obfuscation error:',e);
+this.logs.push('❌ Error: Fallback to comment removal only');
+code=this.removeComments(originalCode);
+code=this.addWrapper(code);
+}
+
 return{
 code:this.getHeader()+code,
 logs:this.logs
@@ -453,7 +389,7 @@ logs:this.logs
 
 const app=express();
 app.get('/',(req,res)=>{
-res.send(`<!DOCTYPE html><html><head><title>LuaGuard v5.6</title>
+res.send(`<!DOCTYPE html><html><head><title>LuaGuard v5.6.1</title>
 <style>
 body{font-family:Arial,sans-serif;background:#0d1117;color:#c9d1d9;text-align:center;padding:50px;margin:0}
 h1{color:#58a6ff;font-size:2.5em}
@@ -461,12 +397,11 @@ h1{color:#58a6ff;font-size:2.5em}
 .box{background:#161b22;padding:25px;border-radius:12px;max-width:550px;margin:25px auto;border:1px solid #30363d}
 ul{text-align:left;padding-left:20px}
 li{margin:8px 0}
-.tier1{color:#58a6ff}
-.tier2{color:#f0883e}
 .footer{color:#8b949e;margin-top:30px}
+.fix{color:#f0883e}
 </style></head><body>
-<h1>🛡️ LuaGuard v5.6</h1>
-<p class="ok">● Online & Ready</p>
+<h1>🛡️ LuaGuard v5.6.1</h1>
+<p class="ok">● Stable Version</p>
 <div class="box">
 <h3>⚡ Performance</h3>
 <p>Comments removal only</p>
@@ -476,19 +411,19 @@ li{margin:8px 0}
 <p>+ Variable rename + String encode</p>
 </div>
 <div class="box">
-<h3>🔒 Max Security (Tier 1+2)</h3>
+<h3>🔒 Max Security</h3>
 <ul>
-<li class="tier1">✅ XOR String Encryption</li>
-<li class="tier1">✅ Constant Table</li>
-<li class="tier1">✅ Variable Obfuscation (10 styles)</li>
-<li class="tier1">✅ Number Obfuscation</li>
-<li class="tier1">✅ Dead Code Injection</li>
-<li class="tier2">🆕 Control Flow Flattening</li>
-<li class="tier2">🆕 Opaque Predicates</li>
-<li class="tier2">🆕 Garbage Conditionals</li>
+<li>✅ XOR String Encryption</li>
+<li>✅ Constant Table</li>
+<li>✅ Variable Obfuscation (10 styles)</li>
+<li>✅ Number Obfuscation</li>
+<li>✅ Dead Code Injection</li>
+<li class="fix">🔧 Fixed: Variable detection</li>
+<li class="fix">🔧 Fixed: String extraction</li>
+<li class="fix">🔧 Fixed: Output validation</li>
 </ul>
 </div>
-<p class="footer">Delta Executor Compatible | v5.6 Tier 2</p>
+<p class="footer">Delta Executor Compatible | Stable Build</p>
 </body></html>`);
 });
 app.listen(process.env.PORT||3000,()=>console.log('[Server] Running on port '+(process.env.PORT||3000)));
@@ -497,7 +432,7 @@ const TOKEN=process.env.DISCORD_TOKEN;
 const CLIENT_ID=process.env.CLIENT_ID;
 
 console.log('\n========================================');
-console.log('  LuaGuard v5.6 - Tier 2 Update');
+console.log('  LuaGuard v5.6.1 - Stable');
 console.log('========================================');
 console.log('Token: '+(TOKEN?'✅ OK':'❌ MISSING'));
 console.log('Client ID: '+(CLIENT_ID?'✅ OK':'❌ MISSING'));
@@ -523,7 +458,7 @@ const rest=new REST({version:'10'}).setToken(TOKEN);
 
 client.once('ready',async()=>{
 console.log('[Bot] Logged in as '+client.user.tag);
-client.user.setActivity('/obfuscate | v5.6',{type:ActivityType.Watching});
+client.user.setActivity('/obfuscate | v5.6.1',{type:ActivityType.Watching});
 if(CLIENT_ID){
 try{
 await rest.put(Routes.applicationCommands(CLIENT_ID),{body:commands});
@@ -543,14 +478,14 @@ return interaction.reply({content:'🏓 Pong! Latency: **'+latency+'ms**',epheme
 if(interaction.commandName==='help'){
 const embed=new EmbedBuilder()
 .setColor(0x58a6ff)
-.setTitle('🛡️ LuaGuard v5.6 - Help')
-.setDescription('Advanced Lua Obfuscator with Tier 2 Protection')
+.setTitle('🛡️ LuaGuard v5.6.1 - Help')
+.setDescription('Stable Lua Obfuscator')
 .addFields(
 {name:'⚡ Performance',value:'```\n• Comment removal\n• Basic cleaning\n```',inline:true},
 {name:'⚖️ Balanced',value:'```\n• + Variable rename\n• + String encode\n```',inline:true},
-{name:'🔒 Max Security',value:'```\n• + XOR Encryption\n• + Constant Table\n• + Number obfuscation\n• + Dead code\n• + Control Flow\n• + Opaque Predicates\n```',inline:true},
+{name:'🔒 Max Security',value:'```\n• + XOR Encryption\n• + Constant Table\n• + Number obfuscation\n• + Dead code\n```',inline:true},
 {name:'📋 Commands',value:'`/obfuscate` - Protect your script\n`/ping` - Check latency\n`/help` - This message',inline:false},
-{name:'🆕 v5.6 Tier 2 Features',value:'• Control Flow Flattening - Transforms if/else into state machines\n• Opaque Predicates - Complex conditions that are always true/false\n• Garbage Conditionals - Fake branches that never execute',inline:false}
+{name:'🔧 v5.6.1 Fixes',value:'• Improved variable detection\n• Better string extraction\n• Output validation\n• Fallback on error',inline:false}
 )
 .setFooter({text:'Delta Executor Compatible'})
 .setTimestamp();
@@ -579,7 +514,7 @@ return interaction.editReply('❌ Empty file');
 }
 
 const startTime=Date.now();
-const obf=new LuaGuardAdvanced(preset);
+const obf=new LuaGuardStable(preset);
 const result=obf.obfuscate(source);
 const endTime=Date.now();
 const processTime=((endTime-startTime)/1000).toFixed(2);
@@ -590,7 +525,7 @@ const attachment=new AttachmentBuilder(buf,{name:outName});
 
 const colors={performance:0x3fb950,balanced:0x58a6ff,maxSecurity:0xf85149};
 const icons={performance:'⚡',balanced:'⚖️',maxSecurity:'🔒'};
-const presetNames={performance:'Performance',balanced:'Balanced',maxSecurity:'Max Security (Tier 1+2)'};
+const presetNames={performance:'Performance',balanced:'Balanced',maxSecurity:'Max Security'};
 
 const embed=new EmbedBuilder()
 .setColor(colors[preset])
@@ -604,7 +539,7 @@ const embed=new EmbedBuilder()
 {name:'🔐 XOR Key',value:preset==='maxSecurity'?'`'+obf.xorKey+'`':'N/A',inline:true},
 {name:'🔧 Transforms',value:'```\n'+result.logs.join('\n')+'\n```',inline:false}
 )
-.setFooter({text:'LuaGuard v5.6 | Tier 2 Update'})
+.setFooter({text:'LuaGuard v5.6.1 | Stable'})
 .setTimestamp();
 
 await interaction.editReply({embeds:[embed],files:[attachment]});
