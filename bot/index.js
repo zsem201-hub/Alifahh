@@ -54,13 +54,28 @@ class LuraphStyleObfuscator {
         this.varMap = new Map();
         this.logs = [];
         
-        // Character sets untuk nama variable yang acak
+        // =============================================
+        // CHARACTER SETS - EDIT DISINI UNTUK CUSTOM
+        // =============================================
         this.charSets = {
-            ilI: ['l', 'I', '1', 'i', 'L'],           // Confusing chars
-            oO0: ['o', 'O', '0', 'Q'],                // Similar looking
+            // Set 1: Karakter yang mirip (l, I, 1, i)
+            confusing1: ['l', 'I', '1', 'i', 'L'],
+            
+            // Set 2: Karakter O dan 0 yang mirip
+            confusing2: ['o', 'O', '0', 'Q'],
+            
+            // Set 3: Campuran karakter yang membingungkan
             mixed: ['l', 'I', '1', 'i', 'O', '0', 'S', '5', 'Z', '2', 'B', '8'],
-            alpha: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
-            hex: '0123456789ABCDEF'
+            
+            // Set 4: Huruf untuk hex
+            hex: '0123456789ABCDEF',
+            
+            // Set 5: Underscore heavy
+            underscore: ['_', 'l', 'I', '_', '_', '1']
+            
+            // TAMBAHKAN SET BARU DISINI:
+            // custom1: ['a', 'b', 'c', ...],
+            // symbols: ['α', 'β', 'γ', ...], // Unicode (hati-hati support)
         };
     }
 
@@ -74,19 +89,22 @@ class LuraphStyleObfuscator {
         return arr[Math.floor(Math.random() * arr.length)];
     }
 
-    // Generate confusing variable name (Luraph style)
+    // =============================================
+    // VARIABLE NAME GENERATOR - EDIT DISINI
+    // =============================================
     genVarName() {
         const styles = [
-            // Style 1: IllIlIlI (confusing l, I, 1)
+            // Style 1: IllIlIlI (l, I, 1 mix)
             () => {
                 let name = '_';
-                const chars = this.charSets.ilI;
+                const chars = this.charSets.confusing1;
                 for (let i = 0; i < this.rand(6, 10); i++) {
                     name += this.randItem(chars);
                 }
                 return name;
             },
-            // Style 2: _0xABCD1234
+            
+            // Style 2: _0xABCD1234 (hex style)
             () => {
                 let hex = '';
                 for (let i = 0; i < 8; i++) {
@@ -94,15 +112,17 @@ class LuraphStyleObfuscator {
                 }
                 return `_0x${hex}`;
             },
-            // Style 3: _OoO0oO0O (confusing o, O, 0)
+            
+            // Style 3: _OoO0oO0O (o, O, 0 mix)
             () => {
                 let name = '_';
-                const chars = this.charSets.oO0;
+                const chars = this.charSets.confusing2;
                 for (let i = 0; i < this.rand(5, 8); i++) {
                     name += this.randItem(chars);
                 }
                 return name;
             },
+            
             // Style 4: _S5Z2B8 (mixed confusing)
             () => {
                 let name = '_';
@@ -112,14 +132,19 @@ class LuraphStyleObfuscator {
                 }
                 return name;
             },
-            // Style 5: _____ (underscores with hidden chars)
+            
+            // Style 5: ___l_I_1__ (underscore heavy)
             () => {
                 let name = '';
+                const chars = this.charSets.underscore;
                 for (let i = 0; i < this.rand(8, 12); i++) {
-                    name += Math.random() > 0.3 ? '_' : this.randItem(this.charSets.ilI);
+                    name += this.randItem(chars);
                 }
                 return name;
             }
+            
+            // TAMBAHKAN STYLE BARU DISINI:
+            // () => { ... return name; },
         ];
 
         this.varCounter++;
@@ -144,97 +169,60 @@ class LuraphStyleObfuscator {
         return inStr;
     }
 
-    // Encode string dengan variasi metode
+    // =============================================
+    // STRING ENCODER - EDIT DISINI UNTUK VARIASI
+    // =============================================
     encodeString(str) {
         if (!str || str.length === 0) return '""';
         
-        const methods = [
-            // Method 1: string.char dengan variasi format angka
-            () => {
-                const codes = [];
-                for (let i = 0; i < str.length; i++) {
-                    const code = str.charCodeAt(i);
-                    // Random format: decimal, hex, atau math expression
-                    const format = this.rand(0, 2);
-                    if (format === 0) {
-                        codes.push(code.toString());
-                    } else if (format === 1) {
-                        codes.push(`0x${code.toString(16).toUpperCase()}`);
-                    } else {
-                        // Math expression
-                        const a = this.rand(1, code - 1);
-                        codes.push(`(${a}+${code - a})`);
-                    }
-                }
-                return `string.char(${codes.join(',')})`;
-            },
-            // Method 2: Concatenated string.char
-            () => {
-                if (str.length > 10) return null; // Too long for this method
-                const parts = [];
-                for (let i = 0; i < str.length; i++) {
-                    const code = str.charCodeAt(i);
-                    parts.push(`string.char(${code})`);
-                }
-                return `(${parts.join('..')})`;
-            },
-            // Method 3: Mixed hex in string.char
-            () => {
-                const codes = [];
-                for (let i = 0; i < str.length; i++) {
-                    const code = str.charCodeAt(i);
-                    codes.push(Math.random() > 0.5 ? `0x${code.toString(16).toUpperCase()}` : code);
-                }
-                return `string.char(${codes.join(',')})`;
+        const codes = [];
+        for (let i = 0; i < str.length; i++) {
+            const code = str.charCodeAt(i);
+            
+            // Random format untuk setiap karakter
+            const format = this.rand(0, 2);
+            if (format === 0) {
+                // Decimal biasa
+                codes.push(code.toString());
+            } else if (format === 1) {
+                // Hexadecimal
+                codes.push(`0x${code.toString(16).toUpperCase()}`);
+            } else {
+                // Math expression
+                const a = this.rand(1, Math.max(1, code - 1));
+                codes.push(`(${a}+${code - a})`);
             }
-        ];
-
-        const method = methods[this.rand(0, methods.length - 1)];
-        const result = method();
-        return result || methods[0]();
+        }
+        return `string.char(${codes.join(',')})`;
     }
 
-    // Convert number dengan variasi
+    // =============================================
+    // NUMBER ENCODER - EDIT DISINI UNTUK VARIASI
+    // =============================================
     encodeNumber(num) {
         if (num < 2 || num > 50000 || !Number.isInteger(num)) return num.toString();
         
-        const methods = [
-            // Hex
-            () => `0x${num.toString(16).toUpperCase()}`,
-            // Addition
-            () => {
+        const method = this.rand(0, 4);
+        
+        switch(method) {
+            case 0: // Hex
+                return `0x${num.toString(16).toUpperCase()}`;
+            case 1: // Addition
                 const a = this.rand(1, num - 1);
                 return `(${a}+${num - a})`;
-            },
-            // Subtraction
-            () => {
-                const a = num + this.rand(1, 100);
-                return `(${a}-${a - num})`;
-            },
-            // Multiplication (if divisible)
-            () => {
+            case 2: // Subtraction
+                const b = num + this.rand(1, 100);
+                return `(${b}-${b - num})`;
+            case 3: // Double negation
+                return `(-(-${num}))`;
+            case 4: // Multiplication (if possible)
                 for (let i = 2; i <= Math.min(10, Math.sqrt(num)); i++) {
                     if (num % i === 0) return `(${i}*${num/i})`;
                 }
-                return null;
-            },
-            // Bit operations
-            () => {
-                if (num <= 255) {
-                    return `bit32.band(0x${(num + this.rand(1, 100)).toString(16).toUpperCase()},0x${num.toString(16).toUpperCase()})`;
-                }
-                return null;
-            },
-            // Double negation
-            () => `(-(-${num}))`
-        ];
-
-        for (let i = 0; i < 3; i++) {
-            const method = methods[this.rand(0, methods.length - 1)];
-            const result = method();
-            if (result) return result;
+                return `0x${num.toString(16).toUpperCase()}`;
+            default:
+                return num.toString();
         }
-        return `0x${num.toString(16).toUpperCase()}`;
     }
 
     // ======== TRANSFORMS ========
@@ -390,45 +378,17 @@ class LuraphStyleObfuscator {
         return result;
     }
 
-    // 5. Minify (COMPACT)
+    // 5. Minify (SAFE - FIXED)
     minify(code) {
-        // Remove empty lines and trim
+        // Hapus baris kosong dan trim setiap baris
         let lines = code.split('\n').map(l => l.trim()).filter(l => l !== '');
         
-        // Join dengan semicolon dimana memungkinkan
-        let result = '';
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const nextLine = lines[i + 1] || '';
-            
-            result += line;
-            
-            // Tambah newline hanya jika diperlukan
-            const needsNewline = 
-                line.endsWith('then') || 
-                line.endsWith('do') || 
-                line.endsWith('else') ||
-                line.endsWith('function') ||
-                line === 'end' ||
-                nextLine.startsWith('end') ||
-                nextLine.startsWith('else') ||
-                nextLine.startsWith('elseif') ||
-                nextLine.startsWith('until') ||
-                line.endsWith('end') ||
-                (line.includes('function') && line.endsWith(')'));
-                
-            if (needsNewline && i < lines.length - 1) {
-                result += '\n';
-            } else if (i < lines.length - 1) {
-                // Coba gabung dengan semicolon atau spasi
-                if (!line.endsWith(';') && !line.endsWith(',') && !nextLine.startsWith('local') && !nextLine.startsWith('if') && !nextLine.startsWith('for') && !nextLine.startsWith('while')) {
-                    result += ';';
-                } else {
-                    result += ' ';
-                }
-            }
-        }
-
+        // Gabungkan dengan newline (AMAN)
+        let result = lines.join('\n');
+        
+        // Hapus multiple newlines
+        result = result.replace(/\n{2,}/g, '\n');
+        
         this.logs.push('Minified');
         return result;
     }
@@ -441,14 +401,13 @@ class LuraphStyleObfuscator {
         this.logs.push('Wrapped');
         
         if (this.preset === 'maxSecurity') {
-            // Anti-tamper wrapper
             const key = this.rand(1000, 9999);
-            return `local ${wrapperVar}=${key};if(${wrapperVar}~=${key})then return end;do\n${code}\nend`;
+            return `local ${wrapperVar}=${key}\nif ${wrapperVar}~=${key} then return end\ndo\n${code}\nend`;
         }
         return `do\n${code}\nend`;
     }
 
-    // Generate Header (compact)
+    // Generate Header
     getHeader() {
         const id = Math.random().toString(36).substring(2, 10).toUpperCase();
         return `--[[ LuaGuard v3.5 | ${id} ]]\n`;
