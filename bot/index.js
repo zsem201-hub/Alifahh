@@ -45,22 +45,29 @@ const PROTECTED = new Set([
 ]);
 
 // ==========================================
-// LUAGUARD STABLE OBFUSCATOR
+// LUAGUARD ADVANCED OBFUSCATOR v3.0
 // ==========================================
-class LuaGuard {
+class LuaGuardAdvanced {
     constructor(preset) {
         this.preset = preset;
         this.counter = 0;
         this.varMap = new Map();
+        this.stringTable = [];
         this.logs = [];
     }
 
-    // Generate Hex Name
-    hexName() {
-        return '_0x' + (this.counter++).toString(16).toUpperCase().padStart(4, '0');
+    // Generate unique hex name
+    hexName(prefix = '') {
+        const hex = (this.counter++).toString(16).toUpperCase().padStart(4, '0');
+        return `_${prefix}0x${hex}`;
     }
 
-    // Check if inside string
+    // Random integer
+    randInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    // Check if position is inside string
     isInString(code, pos) {
         let inStr = false, q = '';
         for (let i = 0; i < pos && i < code.length; i++) {
@@ -69,7 +76,6 @@ class LuaGuard {
                 if (!inStr) { inStr = true; q = c; }
                 else if (c === q) { inStr = false; }
             }
-            // Long string
             if (c === '[' && code[i+1] === '[' && !inStr) {
                 const end = code.indexOf(']]', i+2);
                 if (end > 0 && pos > i && pos < end+2) return true;
@@ -88,7 +94,48 @@ class LuaGuard {
         return `string.char(${codes.join(',')})`;
     }
 
-    // 1. Remove Comments
+    // Convert integer to math expression
+    numToMath(num) {
+        if (num < 10 || num > 10000) return num.toString();
+        
+        const methods = [
+            // Addition
+            () => {
+                const a = this.randInt(1, num - 1);
+                const b = num - a;
+                return `(${a}+${b})`;
+            },
+            // Multiplication
+            () => {
+                for (let i = 2; i <= Math.sqrt(num); i++) {
+                    if (num % i === 0) {
+                        return `(${i}*${num/i})`;
+                    }
+                }
+                return null;
+            },
+            // Subtraction
+            () => {
+                const a = num + this.randInt(1, 100);
+                const b = a - num;
+                return `(${a}-${b})`;
+            },
+            // Hex
+            () => `0x${num.toString(16).toUpperCase()}`
+        ];
+
+        // Try random method
+        for (let i = 0; i < 3; i++) {
+            const method = methods[this.randInt(0, methods.length - 1)];
+            const result = method();
+            if (result) return result;
+        }
+        return num.toString();
+    }
+
+    // ======================================
+    // TRANSFORM 1: Remove Comments
+    // ======================================
     removeComments(code) {
         let result = code;
         let count = 0;
@@ -121,20 +168,27 @@ class LuaGuard {
         return result;
     }
 
-    // 2. Rename Variables
+    // ======================================
+    // TRANSFORM 2: Rename Variables
+    // ======================================
     renameVars(code) {
         if (this.preset === 'performance') return code;
 
         let result = code;
         const vars = [];
 
+        // Collect all variable declarations
+        const patterns = [
+            /\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)/g,
+            /\bfor\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:,\s*([a-zA-Z_][a-zA-Z0-9_]*))?\s*[=,in]/g
+        ];
+
         // Local declarations
-        const localRe = /\blocal\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
         let m;
-        while ((m = localRe.exec(code)) !== null) {
+        while ((m = patterns[0].exec(code)) !== null) {
             const name = m[1];
             if (!PROTECTED.has(name) && !this.varMap.has(name)) {
-                const newN = this.hexName();
+                const newN = this.hexName('L');
                 this.varMap.set(name, newN);
                 vars.push({ old: name, new: newN });
             }
@@ -147,7 +201,7 @@ class LuaGuard {
                 const params = m[1].split(',').map(p => p.trim()).filter(p => p && p !== '...');
                 for (const p of params) {
                     if (!PROTECTED.has(p) && !this.varMap.has(p)) {
-                        const newN = this.hexName();
+                        const newN = this.hexName('P');
                         this.varMap.set(p, newN);
                         vars.push({ old: p, new: newN });
                     }
@@ -156,19 +210,17 @@ class LuaGuard {
         }
 
         // For loop variables
-        const forRe = /\bfor\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:,\s*([a-zA-Z_][a-zA-Z0-9_]*))?\s*[=,in]/g;
-        while ((m = forRe.exec(code)) !== null) {
-            const loopVars = [m[1], m[2]].filter(Boolean);
-            for (const v of loopVars) {
+        while ((m = patterns[1].exec(code)) !== null) {
+            [m[1], m[2]].filter(Boolean).forEach(v => {
                 if (!PROTECTED.has(v) && !this.varMap.has(v)) {
-                    const newN = this.hexName();
+                    const newN = this.hexName('I');
                     this.varMap.set(v, newN);
                     vars.push({ old: v, new: newN });
                 }
-            }
+            });
         }
 
-        // Sort by length (longest first) to avoid partial replacement
+        // Sort by length (longest first)
         vars.sort((a, b) => b.old.length - a.old.length);
 
         // Replace all occurrences
@@ -183,25 +235,24 @@ class LuaGuard {
         return result;
     }
 
-    // 3. Encode Strings (SAFE - Only long strings without escapes)
+    // ======================================
+    // TRANSFORM 3: Encode Strings
+    // ======================================
     encodeStrings(code) {
-        if (this.preset !== 'maxSecurity') return code;
+        if (this.preset === 'performance') return code;
 
         let result = '';
         let i = 0;
         let encoded = 0;
 
         while (i < code.length) {
-            // Check for string start
             if ((code[i] === '"' || code[i] === "'") && (i === 0 || code[i-1] !== '\\')) {
                 const quote = code[i];
                 let content = '';
-                i++; // skip opening quote
+                i++;
                 
-                // Collect string content
                 while (i < code.length) {
                     if (code[i] === '\\' && i + 1 < code.length) {
-                        // Keep escape sequences as-is
                         content += code[i] + code[i+1];
                         i += 2;
                     } else if (code[i] === quote) {
@@ -211,16 +262,13 @@ class LuaGuard {
                         i++;
                     }
                 }
-                i++; // skip closing quote
+                i++;
 
-                // Only encode if:
-                // - Length > 4
-                // - No escape sequences
-                // - No special chars that might break
+                // Encode conditions
                 const hasEscape = content.includes('\\');
-                const hasNewline = content.includes('\n') || content.includes('\r');
+                const isSafe = content.length > 4 && !hasEscape;
                 
-                if (content.length > 4 && !hasEscape && !hasNewline) {
+                if (isSafe && this.preset === 'maxSecurity') {
                     result += this.encodeStr(content);
                     encoded++;
                 } else {
@@ -236,28 +284,101 @@ class LuaGuard {
         return result;
     }
 
-    // 4. Clean Whitespace (SAFE - Keep newlines)
+    // ======================================
+    // TRANSFORM 4: Number Obfuscation (Safe)
+    // ======================================
+    obfuscateNumbers(code) {
+        if (this.preset !== 'maxSecurity') return code;
+
+        let count = 0;
+        
+        // Only match whole integers (not decimals, not in variable names)
+        const result = code.replace(/(?<![.\w])(\d+)(?![.\w])/g, (match, num, offset) => {
+            // Skip if inside string
+            if (this.isInString(code, offset)) return match;
+            
+            const n = parseInt(num);
+            
+            // Only process safe integers
+            if (isNaN(n) || n < 10 || n > 10000) return match;
+            
+            // Skip if it looks like it's part of a decimal (check previous char)
+            const prevChar = offset > 0 ? code[offset - 1] : '';
+            if (prevChar === '.') return match;
+            
+            count++;
+            return this.numToMath(n);
+        });
+
+        if (count > 0) this.logs.push(`Obfuscated ${count} numbers`);
+        return result;
+    }
+
+    // ======================================
+    // TRANSFORM 5: Dead Code Injection
+    // ======================================
+    injectDeadCode(code) {
+        if (this.preset !== 'maxSecurity') return code;
+
+        const deadSnippets = [
+            `local _dead${this.counter++} = nil`,
+            `local _null${this.counter++} = false`,
+            `local _void${this.counter++} = function() end`,
+            `local _fake${this.counter++} = {}`,
+            `if false then local _ = 0 end`
+        ];
+
+        // Select 2-4 random snippets
+        const count = this.randInt(2, 4);
+        const selected = [];
+        for (let i = 0; i < count; i++) {
+            const idx = this.randInt(0, deadSnippets.length - 1);
+            selected.push(deadSnippets[idx]);
+        }
+
+        this.logs.push(`Injected ${count} dead code blocks`);
+        return selected.join('\n') + '\n' + code;
+    }
+
+    // ======================================
+    // TRANSFORM 6: Control Flow Obfuscation
+    // ======================================
+    addControlFlow(code) {
+        if (this.preset !== 'maxSecurity') return code;
+
+        const key = this.randInt(100, 999);
+        const check = `local _cfkey = ${key}`;
+        const verify = `if _cfkey ~= ${key} then return end`;
+
+        this.logs.push('Added control flow check');
+        return check + '\n' + verify + '\n' + code;
+    }
+
+    // ======================================
+    // TRANSFORM 7: Clean Whitespace
+    // ======================================
     cleanWhitespace(code) {
         let lines = code.split('\n');
-        
-        // Trim each line and remove empty lines
         lines = lines.map(l => l.trim()).filter(l => l !== '');
-        
-        this.logs.push('Cleaned whitespace');
+        this.logs.push('Cleaned structure');
         return lines.join('\n');
     }
 
-    // 5. Add Wrapper
+    // ======================================
+    // TRANSFORM 8: Add Wrapper
+    // ======================================
     addWrapper(code) {
         if (this.preset === 'performance') return code;
-        
         this.logs.push('Added protection wrapper');
         return `do\n${code}\nend`;
     }
 
-    // Generate Header
+    // ======================================
+    // GENERATE HEADER
+    // ======================================
     getHeader() {
         const date = new Date().toISOString().split('T')[0];
+        const id = Math.random().toString(36).substring(2, 10).toUpperCase();
         const presetNames = {
             'performance': 'Performance',
             'balanced': 'Balanced',
@@ -266,23 +387,35 @@ class LuaGuard {
         
         return [
             '-- //////////////////////////////////////////////////////////////////',
-            '-- // LuaGuard Obfuscator v2.1',
+            '-- //  _                  _____                     _',
+            '-- // | |   _   _  __ _  / ____|_   _  __ _ _ __ __| |',
+            '-- // | |  | | | |/ _` || |  __| | | |/ _` | \'__/ _` |',
+            '-- // | |__| |_| | (_| || |_|_ | |_| | (_| | | | (_| |',
+            '-- // |_____\\__,_|\\__,_| \\_____|\\__,_|\\__,_|_|  \\__,_|',
+            '-- //',
+            '-- // LuaGuard Obfuscator v3.0',
             `-- // Preset: ${presetNames[this.preset]}`,
-            `-- // Protected: ${date}`,
+            `-- // ID: ${id}`,
+            `-- // Date: ${date}`,
             '-- // Roblox Executor Compatible',
             '-- //////////////////////////////////////////////////////////////////',
             ''
         ].join('\n');
     }
 
-    // Main obfuscate function
+    // ======================================
+    // MAIN OBFUSCATE FUNCTION
+    // ======================================
     obfuscate(source) {
         let code = source;
 
-        // Apply transforms in safe order
+        // Apply transforms in order
         code = this.removeComments(code);
         code = this.renameVars(code);
         code = this.encodeStrings(code);
+        code = this.obfuscateNumbers(code);
+        code = this.injectDeadCode(code);
+        code = this.addControlFlow(code);
         code = this.cleanWhitespace(code);
         code = this.addWrapper(code);
 
@@ -300,10 +433,24 @@ const app = express();
 app.get('/', (req, res) => {
     res.send(`
         <html>
-        <head><title>LuaGuard</title></head>
-        <body style="font-family:Arial;background:#1a1a2e;color:#fff;text-align:center;padding:50px">
-            <h1>LuaGuard Bot v2.1</h1>
-            <p style="color:#0f0">Online</p>
+        <head>
+            <title>LuaGuard v3.0</title>
+            <style>
+                body { font-family: 'Segoe UI', Arial; background: linear-gradient(135deg, #1a1a2e, #16213e); color: #fff; text-align: center; padding: 50px; min-height: 100vh; margin: 0; }
+                h1 { font-size: 2.5em; margin-bottom: 10px; }
+                .status { color: #00ff88; font-size: 1.2em; }
+                .version { color: #888; margin-top: 20px; }
+                .box { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; max-width: 400px; margin: 30px auto; }
+            </style>
+        </head>
+        <body>
+            <h1>LuaGuard Bot</h1>
+            <p class="status">Status: Online</p>
+            <div class="box">
+                <p>Advanced Lua Obfuscator</p>
+                <p>Use <code>/obfuscate</code> in Discord</p>
+            </div>
+            <p class="version">Version 3.0 - Phase 3</p>
         </body>
         </html>
     `);
@@ -316,9 +463,12 @@ app.listen(process.env.PORT || 3000, () => console.log('[Server] Running'));
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 
-console.log('\n=== LuaGuard Bot v2.1 ===');
-console.log(`Token: ${TOKEN ? 'OK' : 'MISSING'}`);
-console.log(`Client: ${CLIENT_ID || 'MISSING'}\n`);
+console.log('\n╔══════════════════════════════════════╗');
+console.log('║     LuaGuard Bot v3.0 - Phase 3      ║');
+console.log('╠══════════════════════════════════════╣');
+console.log(`║  Token:    ${TOKEN ? 'OK' : 'MISSING'}                       ║`);
+console.log(`║  Client:   ${CLIENT_ID ? 'OK' : 'MISSING'}                       ║`);
+console.log('╚══════════════════════════════════════╝\n');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -326,14 +476,15 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const commands = [
     new SlashCommandBuilder()
         .setName('obfuscate')
-        .setDescription('Protect your Lua script')
+        .setDescription('Protect your Lua script with advanced obfuscation')
         .addAttachmentOption(o => 
             o.setName('file')
-             .setDescription('Upload .lua file')
+             .setDescription('Upload .lua, .luau, or .txt file')
              .setRequired(true))
         .addStringOption(o => 
             o.setName('preset')
              .setDescription('Protection level')
+             .setRequired(false)
              .addChoices(
                  { name: 'Performance - Fast & Light', value: 'performance' },
                  { name: 'Balanced - Recommended', value: 'balanced' },
@@ -341,22 +492,25 @@ const commands = [
              )),
     new SlashCommandBuilder()
         .setName('help')
-        .setDescription('Show help information')
+        .setDescription('Show help and feature information'),
+    new SlashCommandBuilder()
+        .setName('ping')
+        .setDescription('Check bot latency')
 ].map(c => c.toJSON());
 
 // Register commands
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 
 client.once('ready', async () => {
-    console.log(`Logged in as: ${client.user.tag}`);
-    client.user.setActivity('/obfuscate', { type: ActivityType.Listening });
+    console.log(`[Bot] Logged in as: ${client.user.tag}`);
+    client.user.setActivity('/obfuscate | v3.0', { type: ActivityType.Watching });
 
     if (CLIENT_ID) {
         try {
             await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
-            console.log('Commands registered!\n');
+            console.log('[Bot] Commands registered!\n');
         } catch (e) {
-            console.error('Register error:', e.message);
+            console.error('[Bot] Register error:', e.message);
         }
     }
 });
@@ -367,30 +521,53 @@ client.on('interactionCreate', async interaction => {
 
     const { commandName } = interaction;
 
+    // Ping command
+    if (commandName === 'ping') {
+        const latency = Date.now() - interaction.createdTimestamp;
+        const apiLatency = Math.round(client.ws.ping);
+        return interaction.reply(`Pong! Latency: ${latency}ms | API: ${apiLatency}ms`);
+    }
+
     // Help command
     if (commandName === 'help') {
         const embed = new EmbedBuilder()
             .setColor(0x5865F2)
-            .setTitle('LuaGuard Obfuscator')
-            .setDescription('Protect your Roblox Lua scripts!')
+            .setTitle('LuaGuard Obfuscator v3.0')
+            .setDescription('Advanced Lua script protection for Roblox')
             .addFields(
                 { 
                     name: 'Performance', 
-                    value: '- Comment removal\n- Whitespace cleanup', 
+                    value: '```\n- Comment removal\n- Whitespace cleanup\n```', 
                     inline: true 
                 },
                 { 
                     name: 'Balanced', 
-                    value: '- All Performance features\n- Variable renaming', 
+                    value: '```\n- All Performance\n- Variable renaming\n- String encoding\n```', 
                     inline: true 
                 },
                 { 
                     name: 'Max Security', 
-                    value: '- All Balanced features\n- String encoding', 
+                    value: '```\n- All Balanced\n- Number obfuscation\n- Dead code injection\n- Control flow\n```', 
                     inline: true 
+                },
+                {
+                    name: 'Supported Files',
+                    value: '`.lua` `.luau` `.txt`',
+                    inline: true
+                },
+                {
+                    name: 'Max Size',
+                    value: '2 MB',
+                    inline: true
+                },
+                {
+                    name: 'Compatibility',
+                    value: 'All Roblox Executors',
+                    inline: true
                 }
             )
-            .setFooter({ text: 'LuaGuard v2.1 - Stable Release' });
+            .setFooter({ text: 'LuaGuard v3.0 | Phase 3' })
+            .setTimestamp();
         
         return interaction.reply({ embeds: [embed] });
     }
@@ -413,7 +590,7 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
-        // Validate file size (max 2MB)
+        // Validate file size
         if (file.size > 2 * 1024 * 1024) {
             return interaction.reply({ 
                 content: '**Error:** File size must be under 2MB!', 
@@ -434,7 +611,7 @@ client.on('interactionCreate', async interaction => {
 
             // Obfuscate
             const startTime = Date.now();
-            const obfuscator = new LuaGuard(preset);
+            const obfuscator = new LuaGuardAdvanced(preset);
             const result = obfuscator.obfuscate(source);
             const processTime = ((Date.now() - startTime) / 1000).toFixed(2);
 
@@ -443,36 +620,37 @@ client.on('interactionCreate', async interaction => {
             const outputName = file.name.replace(/\.(lua|luau|txt)$/i, '_protected.lua');
             const attachment = new AttachmentBuilder(outputBuffer, { name: outputName });
 
-            // Calculate size change
+            // Calculate stats
             const originalSize = source.length;
             const newSize = result.code.length;
-            const sizeChange = ((newSize / originalSize) * 100).toFixed(0);
+            const ratio = ((newSize / originalSize) * 100).toFixed(0);
 
-            // Create embed
-            const presetColors = {
-                'performance': 0x57F287,
-                'balanced': 0x5865F2,
-                'maxSecurity': 0xED4245
+            // Preset colors and icons
+            const presetInfo = {
+                'performance': { color: 0x57F287, icon: '⚡' },
+                'balanced': { color: 0x5865F2, icon: '⚖️' },
+                'maxSecurity': { color: 0xED4245, icon: '🔒' }
             };
 
             const embed = new EmbedBuilder()
-                .setColor(presetColors[preset])
-                .setTitle('Obfuscation Complete!')
+                .setColor(presetInfo[preset].color)
+                .setTitle(`${presetInfo[preset].icon} Obfuscation Complete!`)
+                .setDescription('Your script has been protected successfully.')
                 .addFields(
-                    { name: 'Input', value: `\`${file.name}\``, inline: true },
-                    { name: 'Output', value: `\`${outputName}\``, inline: true },
-                    { name: 'Preset', value: preset, inline: true },
-                    { name: 'Original Size', value: `${originalSize.toLocaleString()} bytes`, inline: true },
-                    { name: 'New Size', value: `${newSize.toLocaleString()} bytes`, inline: true },
-                    { name: 'Ratio', value: `${sizeChange}%`, inline: true },
-                    { name: 'Process Time', value: `${processTime}s`, inline: true },
+                    { name: '📄 Input', value: `\`${file.name}\``, inline: true },
+                    { name: '📦 Output', value: `\`${outputName}\``, inline: true },
+                    { name: '⚙️ Preset', value: preset, inline: true },
+                    { name: '📊 Original', value: `${originalSize.toLocaleString()} bytes`, inline: true },
+                    { name: '📈 Result', value: `${newSize.toLocaleString()} bytes`, inline: true },
+                    { name: '📐 Ratio', value: `${ratio}%`, inline: true },
+                    { name: '⏱️ Time', value: `${processTime}s`, inline: true },
                     { 
-                        name: 'Transforms Applied', 
-                        value: result.logs.map(l => `> ${l}`).join('\n') || '> None', 
+                        name: '🔧 Transforms Applied', 
+                        value: '```\n' + result.logs.map(l => `✓ ${l}`).join('\n') + '\n```', 
                         inline: false 
                     }
                 )
-                .setFooter({ text: 'LuaGuard v2.1 | Roblox Compatible' })
+                .setFooter({ text: 'LuaGuard v3.0 | Roblox Compatible' })
                 .setTimestamp();
 
             await interaction.editReply({ 
@@ -481,15 +659,22 @@ client.on('interactionCreate', async interaction => {
             });
 
         } catch (error) {
-            console.error('Error:', error);
-            await interaction.editReply(`**Error:** ${error.message}`);
+            console.error('[Error]', error);
+            
+            const errorEmbed = new EmbedBuilder()
+                .setColor(0xFF0000)
+                .setTitle('Obfuscation Failed')
+                .setDescription(`\`\`\`${error.message}\`\`\``)
+                .setTimestamp();
+            
+            await interaction.editReply({ embeds: [errorEmbed] });
         }
     }
 });
 
 // Start bot
 if (TOKEN) {
-    client.login(TOKEN);
+    client.login(TOKEN).catch(e => console.error('[Bot] Login failed:', e.message));
 } else {
-    console.error('No token provided!');
+    console.error('[Bot] No token provided!');
 }
