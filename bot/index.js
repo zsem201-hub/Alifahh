@@ -59,19 +59,19 @@ class LuraphStyleObfuscator {
         // =============================================
         this.charSets = {
             // Set 1: Karakter yang mirip (l, I, 1, i)
-            confusing1: ['l', 'I', '1', 'i', 'L'],
+            confusing1: ['l', 'I', '1', 'i', 'L', 'j', 'h', 'g', 'y', 'd', 's', '$', '5', 'u', 'p', 'm', 'n', 'x', 'b', 'v', 'z', 'c', 'y', 't', 'q'],
             
             // Set 2: Karakter O dan 0 yang mirip
-            confusing2: ['o', 'O', '0', 'Q'],
+            confusing2: ['o', 'O', '0', 'Q', '5', 'Z', '2', 'B', '8', '7', 'J', 'L', 'p', 'u', 'r', 'h', 'K', 'g', '9', 'w', 'q', 'y', 'z'],
             
             // Set 3: Campuran karakter yang membingungkan
-            mixed: ['l', 'I', '1', 'i', 'O', '0', 'S', '5', 'Z', '2', 'B', '8'],
+            mixed: ['l', 'I', '1', 'i', 'O', '0', 'S', '5', 'Z', '2', 'B', '8', '7', 'J', 'L', 'p', 'u', 'r', 'h', 'K', 'g', '9', 'w', 'q', 'y', 'z'],
             
             // Set 4: Huruf untuk hex
-            hex: '0123456789ABCDEF',
+            hex: '0123456789ABCDEFGHIJKLMNOVQRSTUVWXYZ',
             
             // Set 5: Underscore heavy
-            underscore: ['_', 'l', 'I', '_', '_', '1']
+            underscore: ['_', 'l', 'I', '_', '_', '1', '#', '&', '$', '!', '+', '-', '@', '€', '*', '~', '{', '}', '(', ')']
             
             // TAMBAHKAN SET BARU DISINI:
             // custom1: ['a', 'b', 'c', ...],
