@@ -45,18 +45,15 @@ const PROTECTED = new Set([
 ]);
 
 // ==========================================
-// LUAGUARD ADVANCED v4.0
+// LUAGUARD v4.0 (FIXED)
 // ==========================================
 class LuaGuardV4 {
     constructor(preset) {
         this.preset = preset;
         this.varCounter = 0;
         this.varMap = new Map();
-        this.stringTable = [];
         this.logs = [];
-        this.xorKey = this.rand(50, 200);
         
-        // Character sets untuk nama variable
         this.charSets = {
             confusing1: ['l', 'I', '1', 'i', 'L'],
             confusing2: ['o', 'O', '0', 'Q'],
@@ -74,7 +71,6 @@ class LuaGuardV4 {
         return arr[Math.floor(Math.random() * arr.length)];
     }
 
-    // Generate variable name dengan berbagai style
     genVarName() {
         const styles = [
             () => {
@@ -115,8 +111,7 @@ class LuaGuardV4 {
         ];
 
         this.varCounter++;
-        const style = styles[this.rand(0, styles.length - 1)];
-        return style() + this.varCounter.toString(36);
+        return styles[this.rand(0, styles.length - 1)]() + this.varCounter.toString(36);
     }
 
     isInString(code, pos) {
@@ -135,202 +130,82 @@ class LuaGuardV4 {
         return inStr;
     }
 
-    // XOR encrypt string
-    xorEncrypt(str, key) {
-        const result = [];
-        for (let i = 0; i < str.length; i++) {
-            result.push(str.charCodeAt(i) ^ key);
-        }
-        return result;
-    }
-
-    // Generate string decoder function
-    genStringDecoder() {
-        const decoderName = this.genVarName();
-        const keyVar = this.genVarName();
-        
-        return {
-            name: decoderName,
-            code: `local ${keyVar}=${this.xorKey}
-local ${decoderName}=function(${this.genVarName()})
-local ${this.genVarName()}=""
-for ${this.genVarName()}=1,#${this.genVarName()} do
-${this.genVarName()}=${this.genVarName()}..string.char(bit32.bxor(${this.genVarName()}[${this.genVarName()}],${keyVar}))
-end
-return ${this.genVarName()}
-end`
-        };
-    }
-
-    // Encode string dengan XOR + table
-    encodeStringXOR(str) {
-        const encrypted = this.xorEncrypt(str, this.xorKey);
-        return `{${encrypted.join(',')}}`;
-    }
-
-    // Encode string dengan variasi metode
+    // String encoding dengan variasi
     encodeString(str) {
         if (!str || str.length === 0) return '""';
         
         const codes = [];
         for (let i = 0; i < str.length; i++) {
             const code = str.charCodeAt(i);
-            const format = this.rand(0, 3);
+            const format = this.rand(0, 2);
             
-            switch(format) {
-                case 0: codes.push(code.toString()); break;
-                case 1: codes.push(`0x${code.toString(16).toUpperCase()}`); break;
-                case 2: 
-                    const a = this.rand(1, Math.max(1, code - 1));
-                    codes.push(`(${a}+${code - a})`);
-                    break;
-                case 3:
-                    codes.push(`bit32.band(${code + this.rand(1,50)},${code})`);
-                    break;
+            if (format === 0) {
+                codes.push(code.toString());
+            } else if (format === 1) {
+                codes.push(`0x${code.toString(16).toUpperCase()}`);
+            } else {
+                const a = this.rand(1, Math.max(1, code - 1));
+                codes.push(`(${a}+${code - a})`);
             }
         }
         return `string.char(${codes.join(',')})`;
     }
 
-    // Encode number dengan variasi kompleks
+    // Number encoding dengan variasi
     encodeNumber(num) {
         if (num < 2 || num > 50000 || !Number.isInteger(num)) return num.toString();
         
-        const methods = [
-            () => `0x${num.toString(16).toUpperCase()}`,
-            () => {
+        const method = this.rand(0, 4);
+        
+        switch(method) {
+            case 0:
+                return `0x${num.toString(16).toUpperCase()}`;
+            case 1:
                 const a = this.rand(1, num - 1);
                 return `(${a}+${num - a})`;
-            },
-            () => {
-                const a = num + this.rand(1, 100);
-                return `(${a}-${a - num})`;
-            },
-            () => `(-(-${num}))`,
-            () => {
+            case 2:
+                const b = num + this.rand(1, 100);
+                return `(${b}-${b - num})`;
+            case 3:
+                return `(-(-${num}))`;
+            case 4:
                 for (let i = 2; i <= Math.min(10, Math.sqrt(num)); i++) {
                     if (num % i === 0) return `(${i}*${num/i})`;
                 }
-                return null;
-            },
-            () => `bit32.band(${num},${num})`,
-            () => `bit32.bor(${num},0)`,
-            () => {
-                const shift = this.rand(1, 4);
-                const base = num >> shift;
-                if ((base << shift) === num) {
-                    return `bit32.lshift(${base},${shift})`;
-                }
-                return null;
-            }
-        ];
-
-        for (let i = 0; i < 5; i++) {
-            const method = methods[this.rand(0, methods.length - 1)];
-            const result = method();
-            if (result) return result;
+                return `0x${num.toString(16).toUpperCase()}`;
+            default:
+                return num.toString();
         }
-        return `0x${num.toString(16).toUpperCase()}`;
     }
 
-    // Generate opaque predicate (selalu true)
-    genOpaqueTrue() {
-        const predicates = [
-            () => {
-                const a = this.rand(1, 100);
-                return `(${a}*${a}>=${0})`;
-            },
-            () => {
-                const a = this.rand(1, 100);
-                return `(type(${a})=="number")`;
-            },
-            () => `(true or false)`,
-            () => `(not not true)`,
-            () => {
-                const a = this.rand(1, 50);
-                const b = this.rand(51, 100);
-                return `(${a}<${b})`;
-            },
-            () => `(1==1)`,
-            () => `(nil==nil)`
-        ];
-        return predicates[this.rand(0, predicates.length - 1)]();
-    }
-
-    // Generate opaque predicate (selalu false)
-    genOpaqueFalse() {
-        const predicates = [
-            () => {
-                const a = this.rand(1, 100);
-                return `(${a}*${a}<${0})`;
-            },
-            () => `(type(nil)=="number")`,
-            () => `(false and true)`,
-            () => `(not true)`,
-            () => {
-                const a = this.rand(51, 100);
-                const b = this.rand(1, 50);
-                return `(${a}<${b})`;
-            },
-            () => `(1==0)`,
-            () => `(nil~=nil)`
-        ];
-        return predicates[this.rand(0, predicates.length - 1)]();
-    }
-
-    // Generate dead code yang terlihat nyata
+    // Dead code yang AMAN (tanpa if...end yang kompleks)
     genDeadCode() {
         const deadCodes = [
-            () => {
-                const v = this.genVarName();
-                return `local ${v}=function()return nil end`;
-            },
-            () => {
-                const v = this.genVarName();
-                return `local ${v}={}`;
-            },
-            () => {
-                const v = this.genVarName();
-                const n = this.rand(1, 1000);
-                return `local ${v}=${this.encodeNumber(n)}`;
-            },
-            () => {
-                const v = this.genVarName();
-                return `local ${v}=function(${this.genVarName()})return ${this.genVarName()} end`;
-            },
-            () => {
-                const v = this.genVarName();
-                return `local ${v}=select(1,nil)`;
-            },
-            () => {
-                return `if ${this.genOpaqueFalse()} then local ${this.genVarName()}=0 end`;
-            },
-            () => {
-                const v = this.genVarName();
-                return `local ${v}=rawget({},1)`;
-            },
-            () => {
-                const v = this.genVarName();
-                return `local ${v}=type(nil)`;
-            }
+            () => `local ${this.genVarName()}=nil`,
+            () => `local ${this.genVarName()}={}`,
+            () => `local ${this.genVarName()}=${this.rand(1, 100)}`,
+            () => `local ${this.genVarName()}=false`,
+            () => `local ${this.genVarName()}=type(nil)`,
+            () => `local ${this.genVarName()}=select(1,nil)`,
+            () => `local ${this.genVarName()}=rawget({},1)`,
+            () => `local ${this.genVarName()}=function()end`
         ];
         return deadCodes[this.rand(0, deadCodes.length - 1)]();
     }
 
-    // Generate anti-tamper code
+    // Anti-tamper yang AMAN
     genAntiTamper() {
         const checkVar = this.genVarName();
-        const key1 = this.rand(1000, 9999);
-        const key2 = key1;
+        const key = this.rand(1000, 9999);
         
-        return `local ${checkVar}=${key1}
-if ${checkVar}~=${key2} then return end
-if ${this.genOpaqueFalse()} then while true do end end`;
+        return `local ${checkVar}=${key}
+if ${checkVar}~=${key} then
+return
+end`;
     }
 
     // ======== TRANSFORMS ========
 
-    // 1. Remove Comments
     removeComments(code) {
         let result = code;
         let count = 0;
@@ -358,7 +233,6 @@ if ${this.genOpaqueFalse()} then while true do end end`;
         return result;
     }
 
-    // 2. Rename Variables
     renameVars(code) {
         if (this.preset === 'performance') return code;
 
@@ -413,7 +287,6 @@ if ${this.genOpaqueFalse()} then while true do end end`;
         return result;
     }
 
-    // 3. Encode Strings
     encodeStrings(code) {
         if (this.preset === 'performance') return code;
 
@@ -457,7 +330,6 @@ if ${this.genOpaqueFalse()} then while true do end end`;
         return result;
     }
 
-    // 4. Obfuscate Numbers
     obfuscateNumbers(code) {
         if (this.preset !== 'maxSecurity') return code;
 
@@ -478,7 +350,6 @@ if ${this.genOpaqueFalse()} then while true do end end`;
         return result;
     }
 
-    // 5. Inject Dead Code
     injectDeadCode(code) {
         if (this.preset !== 'maxSecurity') return code;
 
@@ -486,18 +357,16 @@ if ${this.genOpaqueFalse()} then while true do end end`;
         const newLines = [];
         let injected = 0;
 
-        // Inject di awal
-        for (let i = 0; i < this.rand(2, 4); i++) {
+        // Inject beberapa di awal
+        for (let i = 0; i < this.rand(2, 3); i++) {
             newLines.push(this.genDeadCode());
             injected++;
         }
 
-        // Inject di tengah-tengah
+        // Inject di tengah
         for (let i = 0; i < lines.length; i++) {
             newLines.push(lines[i]);
-            
-            // Random inject setelah beberapa baris
-            if (i > 0 && i < lines.length - 1 && this.rand(1, 10) <= 2) {
+            if (i > 0 && i < lines.length - 1 && this.rand(1, 8) === 1) {
                 newLines.push(this.genDeadCode());
                 injected++;
             }
@@ -507,26 +376,6 @@ if ${this.genOpaqueFalse()} then while true do end end`;
         return newLines.join('\n');
     }
 
-    // 6. Add Opaque Predicates
-    addOpaquePredicates(code) {
-        if (this.preset !== 'maxSecurity') return code;
-
-        let count = 0;
-        
-        // Wrap beberapa bagian dengan opaque predicates
-        const result = code.replace(/\bif\s+(.+?)\s+then/g, (match, condition) => {
-            if (this.rand(1, 3) === 1) {
-                count++;
-                return `if (${this.genOpaqueTrue()}) and (${condition}) then`;
-            }
-            return match;
-        });
-
-        if (count > 0) this.logs.push(`Opaque: +${count}`);
-        return result;
-    }
-
-    // 7. Minify (Safe)
     minify(code) {
         let lines = code.split('\n').map(l => l.trim()).filter(l => l !== '');
         let result = lines.join('\n');
@@ -535,27 +384,27 @@ if ${this.genOpaqueFalse()} then while true do end end`;
         return result;
     }
 
-    // 8. Add Wrapper dengan Anti-Tamper
     addWrapper(code) {
         if (this.preset === 'performance') return code;
         
-        this.logs.push('Wrapped');
+        this.logs.push('Protected');
         
         if (this.preset === 'maxSecurity') {
-            const antiTamper = this.genAntiTamper();
-            return `${antiTamper}\ndo\n${code}\nend`;
+            return `${this.genAntiTamper()}
+do
+${code}
+end`;
         }
-        return `do\n${code}\nend`;
+        return `do
+${code}
+end`;
     }
 
-    // Generate Header
     getHeader() {
         const id = Math.random().toString(36).substring(2, 12).toUpperCase();
-        const date = new Date().toISOString().split('T')[0];
-        return `--[[ LuaGuard v4.0 | ${id} | ${date} ]]\n`;
+        return `--[[ LuaGuard v4.0 | ${id} ]]\n`;
     }
 
-    // Main obfuscate
     obfuscate(source) {
         let code = source;
 
@@ -564,7 +413,6 @@ if ${this.genOpaqueFalse()} then while true do end end`;
         code = this.encodeStrings(code);
         code = this.obfuscateNumbers(code);
         code = this.injectDeadCode(code);
-        code = this.addOpaquePredicates(code);
         code = this.minify(code);
         code = this.addWrapper(code);
 
@@ -579,33 +427,8 @@ if ${this.genOpaqueFalse()} then while true do end end`;
 // WEB SERVER
 // ==========================================
 const app = express();
-app.get('/', (req, res) => {
-    res.send(`
-<!DOCTYPE html>
-<html>
-<head>
-    <title>LuaGuard v4.0</title>
-    <style>
-        body{font-family:Arial;background:#0d1117;color:#c9d1d9;text-align:center;padding:50px}
-        h1{color:#58a6ff}
-        .online{color:#3fb950;font-size:1.2em}
-        .box{background:#161b22;padding:20px;border-radius:10px;max-width:400px;margin:20px auto;border:1px solid #30363d}
-        code{background:#21262d;padding:2px 6px;border-radius:3px}
-    </style>
-</head>
-<body>
-    <h1>LuaGuard Obfuscator</h1>
-    <p class="online">● Online</p>
-    <div class="box">
-        <p>Version 4.0 - Phase 4</p>
-        <p>Use <code>/obfuscate</code> in Discord</p>
-    </div>
-    <p style="color:#8b949e">Advanced Lua Protection</p>
-</body>
-</html>
-    `);
-});
-app.listen(process.env.PORT || 3000, () => console.log('[Server] Running'));
+app.get('/', (req, res) => res.send('LuaGuard v4.0 Online'));
+app.listen(process.env.PORT || 3000, () => console.log('[Server] OK'));
 
 // ==========================================
 // DISCORD BOT
@@ -613,125 +436,65 @@ app.listen(process.env.PORT || 3000, () => console.log('[Server] Running'));
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 
-console.log('\n╔════════════════════════════════════════╗');
-console.log('║       LuaGuard v4.0 - Phase 4          ║');
-console.log('╠════════════════════════════════════════╣');
-console.log(`║  Token: ${TOKEN ? '✓ OK' : '✗ Missing'}                          ║`);
-console.log(`║  Client: ${CLIENT_ID ? '✓ OK' : '✗ Missing'}                         ║`);
-console.log('╚════════════════════════════════════════╝\n');
+console.log(`[LuaGuard v4.0] Token: ${TOKEN ? 'OK' : 'X'} | Client: ${CLIENT_ID ? 'OK' : 'X'}`);
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 const commands = [
     new SlashCommandBuilder()
         .setName('obfuscate')
-        .setDescription('Obfuscate Lua script with advanced protection')
-        .addAttachmentOption(o => 
-            o.setName('file')
-             .setDescription('Upload .lua, .luau, or .txt file')
-             .setRequired(true))
-        .addStringOption(o => 
-            o.setName('preset')
-             .setDescription('Protection level')
-             .addChoices(
-                 { name: '⚡ Performance - Fast & Light', value: 'performance' },
-                 { name: '⚖️ Balanced - Recommended', value: 'balanced' },
-                 { name: '🔒 Max Security - Full Protection', value: 'maxSecurity' }
-             )),
-    new SlashCommandBuilder()
-        .setName('help')
-        .setDescription('Show help and features'),
-    new SlashCommandBuilder()
-        .setName('ping')
-        .setDescription('Check bot latency')
+        .setDescription('Obfuscate Lua script')
+        .addAttachmentOption(o => o.setName('file').setDescription('.lua file').setRequired(true))
+        .addStringOption(o => o.setName('preset').setDescription('Level').addChoices(
+            { name: 'Performance', value: 'performance' },
+            { name: 'Balanced', value: 'balanced' },
+            { name: 'Max Security', value: 'maxSecurity' }
+        )),
+    new SlashCommandBuilder().setName('help').setDescription('Help'),
+    new SlashCommandBuilder().setName('ping').setDescription('Ping')
 ].map(c => c.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 
 client.once('ready', async () => {
-    console.log(`[Bot] Logged in as ${client.user.tag}`);
-    client.user.setActivity('/obfuscate | v4.0', { type: ActivityType.Watching });
-
+    console.log(`[Bot] ${client.user.tag}`);
+    client.user.setActivity('/obfuscate', { type: ActivityType.Watching });
     if (CLIENT_ID) {
         try {
             await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
-            console.log('[Bot] Commands registered!\n');
-        } catch (e) {
-            console.error('[Bot] Error:', e.message);
-        }
+            console.log('[Bot] Commands OK');
+        } catch (e) { console.error(e.message); }
     }
 });
 
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
-    const { commandName } = interaction;
-
-    if (commandName === 'ping') {
-        const latency = Date.now() - interaction.createdTimestamp;
-        return interaction.reply(`🏓 Pong! Latency: \`${latency}ms\` | API: \`${client.ws.ping}ms\``);
+    if (interaction.commandName === 'ping') {
+        return interaction.reply(`Pong: ${Date.now() - interaction.createdTimestamp}ms`);
     }
 
-    if (commandName === 'help') {
+    if (interaction.commandName === 'help') {
         const embed = new EmbedBuilder()
             .setColor(0x5865F2)
-            .setTitle('🛡️ LuaGuard v4.0 - Help')
-            .setDescription('Advanced Lua Obfuscator for Roblox')
+            .setTitle('LuaGuard v4.0')
             .addFields(
-                { 
-                    name: '⚡ Performance', 
-                    value: '```\n• Comment removal\n• Whitespace cleanup\n```', 
-                    inline: true 
-                },
-                { 
-                    name: '⚖️ Balanced', 
-                    value: '```\n• Variable renaming\n• String encoding\n• Wrapper\n```', 
-                    inline: true 
-                },
-                { 
-                    name: '🔒 Max Security', 
-                    value: '```\n• Number obfuscation\n• Dead code injection\n• Opaque predicates\n• Anti-tamper\n```', 
-                    inline: true 
-                },
-                {
-                    name: '📁 Supported Files',
-                    value: '`.lua` `.luau` `.txt`',
-                    inline: true
-                },
-                {
-                    name: '📏 Max Size',
-                    value: '2 MB',
-                    inline: true
-                },
-                {
-                    name: '🎮 Compatibility',
-                    value: 'All Executors',
-                    inline: true
-                }
-            )
-            .setFooter({ text: 'LuaGuard v4.0 | Phase 4' })
-            .setTimestamp();
-        
+                { name: 'Performance', value: 'Comments only', inline: true },
+                { name: 'Balanced', value: '+ Vars + Strings', inline: true },
+                { name: 'Max Security', value: '+ Numbers + DeadCode', inline: true }
+            );
         return interaction.reply({ embeds: [embed] });
     }
 
-    if (commandName === 'obfuscate') {
+    if (interaction.commandName === 'obfuscate') {
         const file = interaction.options.getAttachment('file');
         const preset = interaction.options.getString('preset') || 'balanced';
 
-        const validExt = ['.lua', '.luau', '.txt'];
-        if (!validExt.some(e => file.name.toLowerCase().endsWith(e))) {
-            return interaction.reply({ 
-                content: '❌ **Error:** Only .lua, .luau, or .txt files allowed!', 
-                ephemeral: true 
-            });
+        if (!['.lua', '.luau', '.txt'].some(e => file.name.toLowerCase().endsWith(e))) {
+            return interaction.reply({ content: 'Error: Invalid file', ephemeral: true });
         }
-
         if (file.size > 2 * 1024 * 1024) {
-            return interaction.reply({ 
-                content: '❌ **Error:** File too large! Max 2MB.', 
-                ephemeral: true 
-            });
+            return interaction.reply({ content: 'Error: Max 2MB', ephemeral: true });
         }
 
         await interaction.deferReply();
@@ -739,65 +502,37 @@ client.on('interactionCreate', async interaction => {
         try {
             const res = await axios.get(file.url, { responseType: 'arraybuffer' });
             const source = res.data.toString('utf-8');
+            if (!source.trim()) return interaction.editReply('Error: Empty');
 
-            if (!source.trim()) {
-                return interaction.editReply('❌ **Error:** File is empty!');
-            }
+            const start = Date.now();
+            const obf = new LuaGuardV4(preset);
+            const result = obf.obfuscate(source);
+            const time = ((Date.now() - start) / 1000).toFixed(2);
 
-            const startTime = Date.now();
-            const obfuscator = new LuaGuardV4(preset);
-            const result = obfuscator.obfuscate(source);
-            const processTime = ((Date.now() - startTime) / 1000).toFixed(2);
-
-            const outputBuffer = Buffer.from(result.code, 'utf-8');
-            const outputName = file.name.replace(/\.(lua|luau|txt)$/i, '_obf.lua');
-            const attachment = new AttachmentBuilder(outputBuffer, { name: outputName });
-
-            const originalSize = source.length;
-            const newSize = result.code.length;
-            const ratio = ((newSize / originalSize) * 100).toFixed(0);
-
-            const presetInfo = {
-                'performance': { color: 0x57F287, icon: '⚡' },
-                'balanced': { color: 0x5865F2, icon: '⚖️' },
-                'maxSecurity': { color: 0xED4245, icon: '🔒' }
-            };
+            const buf = Buffer.from(result.code, 'utf-8');
+            const outName = file.name.replace(/\.(lua|luau|txt)$/i, '_obf.lua');
+            const attachment = new AttachmentBuilder(buf, { name: outName });
 
             const embed = new EmbedBuilder()
-                .setColor(presetInfo[preset].color)
-                .setTitle(`${presetInfo[preset].icon} Obfuscation Complete!`)
-                .setDescription('Your script has been protected.')
+                .setColor(preset === 'maxSecurity' ? 0xED4245 : 0x5865F2)
+                .setTitle('Obfuscation Complete')
                 .addFields(
-                    { name: '📄 Input', value: `\`${file.name}\``, inline: true },
-                    { name: '📦 Output', value: `\`${outputName}\``, inline: true },
-                    { name: '⚙️ Preset', value: preset, inline: true },
-                    { name: '📊 Original', value: `\`${originalSize.toLocaleString()}\` bytes`, inline: true },
-                    { name: '📈 Result', value: `\`${newSize.toLocaleString()}\` bytes`, inline: true },
-                    { name: '📐 Ratio', value: `\`${ratio}%\``, inline: true },
-                    { name: '⏱️ Time', value: `\`${processTime}s\``, inline: true },
-                    { 
-                        name: '🔧 Transforms', 
-                        value: '```\n' + result.logs.join('\n') + '\n```', 
-                        inline: false 
-                    }
+                    { name: 'File', value: `\`${file.name}\``, inline: true },
+                    { name: 'Preset', value: preset, inline: true },
+                    { name: 'Time', value: `${time}s`, inline: true },
+                    { name: 'Size', value: `${source.length} → ${result.code.length}`, inline: true },
+                    { name: 'Transforms', value: result.logs.join(' | ') || 'None', inline: false }
                 )
-                .setFooter({ text: 'LuaGuard v4.0 | Roblox Compatible' })
+                .setFooter({ text: 'LuaGuard v4.0' })
                 .setTimestamp();
 
-            await interaction.editReply({ 
-                embeds: [embed], 
-                files: [attachment] 
-            });
+            await interaction.editReply({ embeds: [embed], files: [attachment] });
 
-        } catch (error) {
-            console.error('[Error]', error);
-            await interaction.editReply(`❌ **Error:** ${error.message}`);
+        } catch (e) {
+            console.error(e);
+            await interaction.editReply(`Error: ${e.message}`);
         }
     }
 });
 
-if (TOKEN) {
-    client.login(TOKEN).catch(e => console.error('[Bot] Login failed:', e.message));
-} else {
-    console.error('[Bot] No token provided!');
-            }
+if (TOKEN) client.login(TOKEN);
